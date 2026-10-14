@@ -1,5 +1,28 @@
+from .curriculo import (
+    Competencia,
+    CompetenciaDoPerfil,
+    CursoComplementar,
+    Experiencia,
+    Formacao,
+    Idioma,
+    IdiomaPerfil,
+    NivelIdioma,
+    NivelProficiencia,
+    PerfilCompetencias,
+    SinonimoCompetencia,
+    normalizar_termo,
+)
 from .faculdade import Curso, Faculdade, NucleoCarreiras
 from .usuarios import VERSAO_TERMO_LGPD, Aluno, Gestor, Usuario
+from .vagas import (
+    Analise,
+    Candidatura,
+    Empresa,
+    Encaminhamento,
+    RequisitoCompetencia,
+    RequisitoIdioma,
+    Vaga,
+)
 
 __all__ = [
     "Faculdade",
@@ -9,4 +32,23 @@ __all__ = [
     "Aluno",
     "Gestor",
     "VERSAO_TERMO_LGPD",
+    "Competencia",
+    "SinonimoCompetencia",
+    "PerfilCompetencias",
+    "Formacao",
+    "Experiencia",
+    "CompetenciaDoPerfil",
+    "IdiomaPerfil",
+    "CursoComplementar",
+    "Idioma",
+    "NivelIdioma",
+    "NivelProficiencia",
+    "normalizar_termo",
+    "Empresa",
+    "Vaga",
+    "RequisitoCompetencia",
+    "RequisitoIdioma",
+    "Candidatura",
+    "Analise",
+    "Encaminhamento",
 ]
