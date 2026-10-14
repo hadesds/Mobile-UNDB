@@ -154,3 +154,35 @@ Gestores só são criados pela administração (não existe auto-cadastro de ges
 ## Modelo de dados
 
 Diagrama e dicionário de campos em [`docs/modelo-de-dados.md`](docs/modelo-de-dados.md).
+
+## API (backend)
+
+Autenticação JWT (simplejwt). Prefixo `/api/v1/`. Documentação completa dos
+endpoints em [docs/api.md](docs/api.md).
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate        # inclui as tabelas de blacklist do JWT
+python manage.py test           # 33 testes de API
+```
+
+Variáveis novas no `.env`:
+
+| Variável | Padrão | Função |
+|---|---|---|
+| `ALUNO_EMAIL_DOMINIOS` | `aluno.undb.edu.br` | Domínios aceitos no auto-cadastro. Vazio = qualquer e-mail |
+| `JWT_ACCESS_MINUTES` | `30` | Validade do access token |
+| `JWT_REFRESH_DAYS` | `7` | Validade do refresh token |
+
+## Frontend (React Native + Expo)
+
+Pasta `frontend/` (Expo SDK 57, TypeScript). Requer Node 20+.
+
+```bash
+cd frontend
+npm install
+cp .env.example .env     # ajuste EXPO_PUBLIC_API_URL (ver comentários em src/config/env.ts)
+npx expo start
+```
+
+Estrutura: `src/api` (chamadas HTTP), `src/screens`, `src/theme`, `src/config`.
