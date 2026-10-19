@@ -10,8 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Curso, listarCursos } from "../api/cursos";
-import { API_URL } from "../config/env";
-import { colors, radius, spacing } from "../theme";
+import { API_URL } from "../lib/env";
+import { colors, radius, spacing } from "../constants/theme";
 
 /** Tela base: confirma que o app está falando com o backend (GET /cursos/). */
 export default function HomeScreen() {
