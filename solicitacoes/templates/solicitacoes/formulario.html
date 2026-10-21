@@ -1,0 +1,8 @@
+{% extends "solicitacoes/base.html" %}{% block content %}
+<h1>Envie uma vaga</h1><p>Empresa: <strong>{{ empresa }}</strong></p><p>Seu envio será revisado pelo TEIA antes da publicação. Este link permite um envio.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}
+
+<h2>Competências</h2><p>Preencha as linhas necessárias. As demais podem ficar vazias.</p>
+{{ competencias.management_form }}{{ competencias.non_form_errors }}{% for item in competencias %}<fieldset><legend>Competência {{ forloop.counter }}</legend>{{ item.as_p }}</fieldset>{% endfor %}
+<h2>Idiomas</h2>{{ idiomas.management_form }}{{ idiomas.non_form_errors }}{% for item in idiomas %}<fieldset><legend>Idioma {{ forloop.counter }}</legend>{{ item.as_p }}</fieldset>{% endfor %}
+<button type="submit">Enviar para revisão</button></form>{% endblock %}
