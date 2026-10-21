@@ -13,14 +13,40 @@ export class ApiError extends Error {
 type Options = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
-  token?: string | null;
+  auth?: boolean; // envia o token (padrão: true)
 };
 
-/** Cliente HTTP mínimo. A autenticação (JWT) entra no próximo passo. */
+// O token fica aqui em memória; o AuthProvider (lib/auth.tsx) o mantém atualizado.
+let accessToken: string | null = null;
+let aoExpirar: (() => void) | null = null;
+
+export function definirToken(token: string | null) {
+  accessToken = token;
+}
+
+export function aoSessaoExpirar(fn: (() => void) | null) {
+  aoExpirar = fn;
+}
+
+/** Junta as mensagens de erro do DRF ({campo: [msg]}) num texto legível. */
+function mensagemDeErro(data: unknown, status: number): string {
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (typeof d.detail === "string") return d.detail;
+    const partes = Object.values(d)
+      .flat()
+      .filter((v): v is string => typeof v === "string");
+    if (partes.length) return partes.join("\n");
+  }
+  return `Erro ${status}`;
+}
+
 export async function request<T>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
-  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  if (opts.auth !== false && accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
 
   let res: Response;
   try {
@@ -36,9 +62,8 @@ export async function request<T>(path: string, opts: Options = {}): Promise<T> {
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    const detail =
-      (data as { detail?: string } | null)?.detail ?? `Erro ${res.status}`;
-    throw new ApiError(res.status, data, detail);
+    if (res.status === 401 && opts.auth !== false) aoExpirar?.();
+    throw new ApiError(res.status, data, mensagemDeErro(data, res.status));
   }
   return data as T;
 }

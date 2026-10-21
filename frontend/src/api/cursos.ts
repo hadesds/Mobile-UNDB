@@ -1,5 +1,4 @@
 import { request } from "../lib/api";
+import type { Curso } from "../types";
 
-export type Curso = { id: number; nome: string; total_periodos: number };
-
-export const listarCursos = () => request<Curso[]>("/cursos/");
+export const listarCursos = () => request<Curso[]>("/cursos/", { auth: false });
