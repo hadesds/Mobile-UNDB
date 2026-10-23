@@ -12,16 +12,16 @@ from .services import gestor_autorizado, publicar
 
 class GestorAdminMixin:
     def has_module_permission(self, request):
-        return gestor_autorizado(request.user) and super().has_module_permission(request)
+        return gestor_autorizado(request.user)
 
     def has_view_permission(self, request, obj=None):
-        return gestor_autorizado(request.user) and super().has_view_permission(request, obj)
+        return gestor_autorizado(request.user)
 
     def has_add_permission(self, request):
-        return gestor_autorizado(request.user) and super().has_add_permission(request)
+        return gestor_autorizado(request.user)
 
     def has_change_permission(self, request, obj=None):
-        return gestor_autorizado(request.user) and super().has_change_permission(request, obj)
+        return gestor_autorizado(request.user)
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -60,7 +60,7 @@ class LinkEmpresaAdmin(GestorAdminMixin, admin.ModelAdmin):
 
 class RequisitoInlineMixin:
     def has_add_permission(self, request, obj=None):
-        return (not obj or not obj.vaga_id) and gestor_autorizado(request.user, "solicitacoes.change_solicitacaovaga")
+        return (not obj or not obj.vaga_id) and gestor_autorizado(request.user)
 
     def has_change_permission(self, request, obj=None):
         return self.has_add_permission(request, obj)
@@ -69,7 +69,7 @@ class RequisitoInlineMixin:
         return self.has_add_permission(request, obj)
 
     def has_view_permission(self, request, obj=None):
-        return gestor_autorizado(request.user, "solicitacoes.view_solicitacaovaga")
+        return gestor_autorizado(request.user)
 
 
 class CompetenciaInline(RequisitoInlineMixin, admin.TabularInline):
@@ -116,7 +116,7 @@ class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
 
     @method_decorator(require_http_methods(["GET", "POST"]))
     def confirmar(self, request, pk):
-        if not gestor_autorizado(request.user, "solicitacoes.change_solicitacaovaga", "solicitacoes.publicar_solicitacaovaga"):
+        if not gestor_autorizado(request.user):
             raise PermissionDenied
         obj = get_object_or_404(SolicitacaoVaga, pk=pk)
         if request.method == "POST":

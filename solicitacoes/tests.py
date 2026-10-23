@@ -1,5 +1,4 @@
 from datetime import timedelta
-from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -16,7 +15,6 @@ class FluxoTests(TestCase):
         nucleo = NucleoCarreiras.objects.create(faculdade=fac, nome="TEIA")
         cls.user = Usuario.objects.create_user(email="gestor@example.com", nome="Gestor", perfil="gestor", is_staff=True)
         cls.gestor = Gestor.objects.create(usuario=cls.user, nucleo=nucleo)
-        cls.user.user_permissions.set(Permission.objects.filter(content_type__app_label="solicitacoes"))
         cls.empresa = Empresa.objects.create(nome="Empresa")
         cls.comp = Competencia.objects.create(nome="Python")
 
@@ -137,20 +135,23 @@ class FluxoTests(TestCase):
         self.assertEqual(self.client.post(change, dados).status_code, 403)
         self.assertEqual(self.client.get(change).status_code, 200)
 
-    def test_nao_gestor_e_sem_permissao(self):
+    def test_acesso_automatico_a_gestor_sem_permissoes(self):
         obj = self.enviar()
         url = reverse("admin:solicitacoes_publicar", args=[obj.pk])
-        for perfil in ["aluno", "admin", "gestor"]:
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_add")).status_code, 200)
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(Vaga.objects.count(), 1)
+        for perfil in ["aluno", "admin"]:
             user = Usuario.objects.create_user(email=perfil+"-restrito@example.com", nome=perfil, perfil=perfil, is_staff=True)
-            if perfil == "gestor":
-                Gestor.objects.create(usuario=user, nucleo=self.gestor.nucleo)
-            else:
-                user.user_permissions.set(Permission.objects.filter(content_type__app_label="solicitacoes"))
             self.client.force_login(user)
             self.assertEqual(self.client.post(url).status_code, 403)
             with self.assertRaises(PermissionDenied):
                 publicar(obj.pk, user)
-        self.assertFalse(Vaga.objects.exists())
+        sem_vinculo = Usuario.objects.create_user(email="gestor-sem-vinculo@example.com", nome="Gestor sem vínculo", perfil="gestor", is_staff=True)
+        self.client.force_login(sem_vinculo)
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_add")).status_code, 403)
 
     def test_geracao_link_admin(self):
         self.client.force_login(self.user)

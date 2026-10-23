@@ -11,13 +11,7 @@ Execute `python manage.py migrate` para aplicar `solicitacoes/0001_initial.py`
 ## Acesso e uso
 
 O usuário precisa estar ativo, ter `is_staff`, perfil `gestor` e um registro
-`backend.Gestor`. No Admin de usuários/grupos, conceda:
-
-- Links para empresas: adicionar, visualizar e alterar.
-- Solicitações de vagas: visualizar, alterar e “Pode confirmar publicação de solicitações”.
-
-As permissões dos requisitos inline seguem a permissão de alteração da solicitação.
-Não é necessário conceder acesso de escrita aos modelos atuais de Vaga/Empresa.
+`backend.Gestor`. A associação ao cadastro de Gestor concede automaticamente acesso ao módulo e as ações necessárias. Não é preciso atribuir permissões individuais ou de grupo do módulo. O acesso ao Admin continua exigindo `is_staff`. Não há acesso de escrita aos modelos atuais de Vaga/Empresa.
 Um administrador sem perfil e vínculo de gestor não pode operar este módulo.
 As empresas são as já cadastradas; o módulo não cria empresas.
 
