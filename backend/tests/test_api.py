@@ -270,9 +270,10 @@ class VagaEmpresaTests(BaseAPITest):
         self.como(self.gestor.usuario)
         r = self.client.post("/api/v1/vagas/", self.dados_vaga(), format="json")
         self.assertEqual(self.client.delete(f"/api/v1/vagas/{r.data['id']}/").status_code, 405)
+        # Empresas: o gestor só consulta; o cadastro é da administração.
         e = self.client.post("/api/v1/empresas/", {"nome": "Outra SA"}, format="json")
-        self.assertEqual(e.status_code, 201, e.content)
-        self.assertEqual(self.client.delete(f"/api/v1/empresas/{e.data['id']}/").status_code, 405)
+        self.assertEqual(e.status_code, 403, e.content)
+        self.assertEqual(self.client.delete(f"/api/v1/empresas/{self.empresa.id}/").status_code, 403)
 
     def _cria(self, titulo, status="aberta", prazo=None, cursos=(), **kw):
         v = Vaga.objects.create(

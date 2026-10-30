@@ -19,6 +19,14 @@ def _eh_gestor(user) -> bool:
     )
 
 
+def _eh_admin(user) -> bool:
+    return bool(
+        user
+        and user.is_authenticated
+        and (user.perfil == user.Perfil.ADMIN or user.is_superuser)
+    )
+
+
 class IsAluno(BasePermission):
     message = "Acesso restrito a alunos."
 
@@ -59,3 +67,21 @@ class GestorEscreveAlunoLe(BasePermission):
         if request.method in SAFE_METHODS:
             return _eh_aluno(user) or _eh_gestor(user)
         return _eh_gestor(user)
+
+class IsAdmin(BasePermission):
+    message = "Acesso restrito à administração."
+
+    def has_permission(self, request, view):
+        return _eh_admin(request.user)
+
+
+class AdminEscreveGestorLe(BasePermission):
+    """Leitura para gestor ou admin; escrita somente para admin (ex.: empresas)."""
+
+    message = "Somente a administração pode alterar este recurso."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if request.method in SAFE_METHODS:
+            return _eh_gestor(user) or _eh_admin(user)
+        return _eh_admin(user)

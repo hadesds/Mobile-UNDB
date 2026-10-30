@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Fila de decisão</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:390px;height:844px;overflow:hidden;background:#F4F5F7;font-family:-apple-system,Roboto,"Segoe UI",sans-serif;color:#1C1D22;position:relative}
+.top{padding:62px 16px 4px}
+h1{font-size:28px;line-height:34px;font-weight:800;letter-spacing:-.4px}
+.sub{font-size:15px;color:#5F636D;margin-top:2px}
+.count{margin:16px 16px 0;background:#1C1D22;color:#fff;border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px}
+.count b{font-size:34px;font-weight:800;letter-spacing:-1px}
+.count span{font-size:14px;line-height:19px;color:#D5D7DC}
+.sec{margin:20px 16px 8px;display:flex;justify-content:space-between;align-items:baseline}
+.sec b{font-size:16px}
+.sec small{font-size:13px;color:#B86A00;font-weight:700}
+.card{margin:0 16px;background:#fff;border:1px solid #E4E6EB;border-radius:16px;box-shadow:0 2px 8px rgba(28,29,34,.04)}
+.r{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid #E4E6EB}
+.r:first-child{border-top:0}
+.av{width:38px;height:38px;border-radius:12px;background:#FCE7EE;color:#A3003D;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+.nm{flex:1}.nm b{display:block;font-size:15px}.nm small{font-size:13px;color:#5F636D}
+.sc{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;width:44px;text-align:right}
+.hi{color:#00715F}.md{color:#B86A00}.lo{color:#5F636D}
+.go{font-size:13px;font-weight:700;color:#A3003D;background:#FCE7EE;border-radius:10px;padding:8px 10px}
+.more{padding:12px 14px;border-top:1px solid #E4E6EB;font-size:14px;font-weight:700;color:#CC004C}
+.tab{position:absolute;bottom:0;left:0;right:0;height:84px;background:#fff;border-top:1px solid #E4E6EB;display:flex;padding-top:10px}
+.tab div{flex:1;text-align:center;font-size:12px;font-weight:600;color:#5F636D}
+.tab .on{color:#A3003D}
+.ic{width:24px;height:24px;border-radius:7px;border:2px solid currentColor;margin:0 auto 4px}
+</style></head><body>
+<div class="top"><h1>Olá, Ana</h1><div class="sub">Candidaturas esperando sua decisão.</div></div>
+<div class="count"><b>12</b><span>candidaturas aguardando decisão em 4 vagas abertas. A mais antiga chegou há 6 dias.</span></div>
+<div class="sec"><b>Front-end Jr. · Lumen</b><small>encerra em 5 dias</small></div>
+<div class="card">
+  <div class="r"><div class="av">MC</div><div class="nm"><b>Marina Costa</b><small>2 requisitos para revisar</small></div><div class="sc hi">83%</div><div class="go">Encaminhar</div></div>
+  <div class="r"><div class="av">RN</div><div class="nm"><b>Rafael Nunes</b><small>2 para revisar</small></div><div class="sc md">67%</div><div class="go">Encaminhar</div></div>
+  <div class="more">Ver os 9 candidatos</div>
+</div>
+<div class="sec"><b>Analista de Dados · Vértice</b><small style="color:#5F636D">até 20/11</small></div>
+<div class="card">
+  <div class="r"><div class="av">LS</div><div class="nm"><b>Lucas Souza</b><small>1 para revisar</small></div><div class="sc hi">75%</div><div class="go">Encaminhar</div></div>
+  <div class="r"><div class="av">BA</div><div class="nm"><b>Beatriz Alves</b><small>4 para revisar</small></div><div class="sc lo">33%</div><div class="go">Encaminhar</div></div>
+</div>
+<div class="tab"><div class="on"><div class="ic"></div>Decidir</div><div><div class="ic"></div>Vagas</div><div><div class="ic"></div>Conta</div></div>
+</body></html>

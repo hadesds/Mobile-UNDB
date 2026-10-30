@@ -8,7 +8,8 @@ aluno e entrega ao gestor do TEIA uma lista de candidatos ordenada por compatibi
 com justificativa. **A decisão final é sempre humana.**
 
 > Estado atual: modelos, admin, API REST com JWT, motor de compatibilidade por regras
-> (provisório), seed de demonstração, app mobile e site de apresentação com download do APK.
+> (provisório), seed de demonstração, app mobile (aluno, gestor do TEIA e administração)
+> e site de apresentação com download do APK.
 
 ## Stack
 
@@ -184,6 +185,15 @@ A ordem importa por causa das chaves estrangeiras:
 5. **Usuário** com perfil *Aluno* → **Aluno** → **Perfil de competências**
 
 Gestores só são criados pela administração (não existe auto-cadastro de gestor).
+
+No app, quem entra com perfil **admin** cria gestores, ativa ou desativa contas e mantém
+empresas, competências (com sinônimos) e cursos, sem precisar do admin do Django. O
+**gestor** cadastra e publica vagas, vê o ranking de candidatos com a evidência de cada
+requisito e decide a etapa de cada candidatura.
+
+O aluno também pode **importar o currículo que já tem** (PDF ou Word): o backend lê o
+arquivo inteiro, sugere formação, experiências, competências, idiomas e cursos, e o aluno
+confere e confirma antes de qualquer coisa entrar no perfil.
 
 ## Convenções
 

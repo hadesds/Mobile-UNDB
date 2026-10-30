@@ -142,3 +142,57 @@ export function tempoRelativo(iso: string): string {
   if (dias < 30) return `há ${dias} dias`;
   return `em ${formatarData(iso)}`;
 }
+
+// ---- Gestão (gestor e admin) -----------------------------------------------
+
+export const ROTULO_STATUS_VAGA: Record<string, string> = {
+  rascunho: "Rascunho",
+  aberta: "Aberta",
+  encerrada: "Encerrada",
+};
+
+export const ROTULO_CONVENIO: Record<string, string> = {
+  sem_convenio: "Sem convênio",
+  ativo: "Convênio ativo",
+  a_vencer: "Convênio a vencer",
+  vencido: "Convênio vencido",
+};
+
+export const ROTULO_CATEGORIA: Record<string, string> = {
+  tecnica: "Técnica",
+  ferramenta: "Ferramenta",
+  comportamental: "Comportamental",
+};
+
+export const ROTULO_PERFIL: Record<string, string> = {
+  aluno: "Aluno",
+  gestor: "Gestor",
+  admin: "Admin",
+};
+
+/** "2026-10-30" → "30 out" (curto, para listas). */
+export function formatarDiaMes(iso: string | null): string {
+  if (!iso) return "";
+  const [, m, d] = iso.slice(0, 10).split("-");
+  return `${Number(d)} ${MESES[Number(m) - 1]}`;
+}
+
+/** Máscara enquanto digita: "30102026" → "30/10/2026". */
+export function mascararData(texto: string): string {
+  const d = texto.replace(/\D/g, "").slice(0, 8);
+  if (d.length > 4) return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+  if (d.length > 2) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return d;
+}
+
+/** "30/10/2026" → "2026-10-30" (null quando vazio; undefined quando inválido). */
+export function dataParaIso(texto: string): string | null | undefined {
+  const t = texto.trim();
+  if (!t) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);
+  if (!m) return undefined;
+  const [, d, mes, a] = m;
+  const data = new Date(Number(a), Number(mes) - 1, Number(d));
+  if (data.getDate() !== Number(d) || data.getMonth() !== Number(mes) - 1) return undefined;
+  return `${a}-${mes}-${d}`;
+}

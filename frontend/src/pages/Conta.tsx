@@ -61,6 +61,7 @@ export default function Conta() {
                   {aluno.curso.nome} · {aluno.periodo}º semestre
                 </Text>
               )}
+              {usuario.perfil === "admin" && <Text style={styles.meta}>Administração do sistema</Text>}
               {usuario.gestor && (
                 <Text style={styles.meta}>
                   {usuario.gestor.cargo || "Gestor(a)"} · {usuario.gestor.nucleo.nome}
@@ -68,18 +69,6 @@ export default function Conta() {
               )}
             </View>
           </Surgir>
-
-          {usuario.perfil !== "aluno" && (
-            <Surgir indice={1}>
-              <Cartao style={styles.aviso}>
-                <Icone nome="ajuda" tamanho={20} cor={colors.muted} />
-                <Text style={styles.avisoTexto}>
-                  A área do gestor (vagas, triagem e encaminhamentos) ainda está em construção no app.
-                  Por enquanto, use o painel administrativo do backend.
-                </Text>
-              </Cartao>
-            </Surgir>
-          )}
 
           {aluno && (
             <Surgir indice={1}>
@@ -190,8 +179,6 @@ const styles = StyleSheet.create({
   perfil: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
   nome: { ...font.h2, fontSize: 20, lineHeight: 26 },
   meta: { ...font.small, fontSize: 14, marginTop: 2 },
-  aviso: { flexDirection: "row", gap: spacing.smd, alignItems: "flex-start" },
-  avisoTexto: { flex: 1, ...font.small, fontSize: 14, lineHeight: 20 },
   secao: { paddingVertical: spacing.sm },
   secaoTitulo: { ...font.h3 },
   privTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },

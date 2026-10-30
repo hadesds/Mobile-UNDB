@@ -1,0 +1,82 @@
+{
+  "title": "Área do gestor do TEIA: estrutura",
+  "question": "O visual do app fica como está. Escolha como a área do gestor se organiza; a área do admin segue o mesmo vocabulário (abas Visão geral · Cadastros · Usuários · Conta).",
+  "options": [
+    {
+      "id": "matriz",
+      "kind": "assigned",
+      "label": "Matriz de evidência",
+      "kicker": "THE ROLL",
+      "lineage": "Abas Painel · Vagas · Conta; a triagem mora dentro da vaga",
+      "thesis": "Cada candidato carrega os requisitos da vaga como uma faixa de pontos na mesma ordem, e o gestor lê a vaga de cima a baixo por requisito.",
+      "palette": ["#CC004C", "#F4F5F7", "#00A693", "#B86A00"],
+      "materials": ["cartões brancos sobre cinza", "pontos de evidência por requisito"],
+      "viewport": "Vaga aberta: legenda dos requisitos no topo, filtro por etapa, ranking com nota e faixa de pontos por linha.",
+      "risk": "Com muitos requisitos (10+) a faixa encolhe e pede rolagem lateral ou agrupamento.",
+      "raised": [
+        { "from": "challenger-catalogo", "raise": "A linha tocada se expande no lugar e mostra o que falta, sem sair da lista." }
+      ],
+      "html": ".impeccable/mocks/decision/matriz.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "fila",
+      "kind": "dealt",
+      "label": "Fila de decisão",
+      "lineage": "Abas Decidir · Vagas · Conta; a fila é a tela inicial",
+      "thesis": "A tela inicial é a fila de tudo que espera decisão, agrupada por vaga e ordenada por compatibilidade.",
+      "palette": ["#CC004C", "#F4F5F7", "#1C1D22", "#00A693"],
+      "materials": ["seções por vaga", "ações rápidas na linha"],
+      "viewport": "Contador do que espera decisão, seções por vaga com prazo, candidatos com nota e botão Encaminhar.",
+      "risk": "Gestão de vagas fica em segundo plano; quem cadastra muito sente a aba Vagas longe.",
+      "html": ".impeccable/mocks/decision/fila.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "atividade",
+      "kind": "dealt",
+      "label": "Linha do tempo",
+      "lineage": "Abas Atividade · Vagas · Conta; a tela inicial é um feed",
+      "thesis": "O gestor começa pelo que mudou: novas candidaturas, prazos vencendo, reanálises, cada item levando à ação.",
+      "palette": ["#CC004C", "#F4F5F7", "#B86A00", "#5F636D"],
+      "materials": ["feed agrupado por dia", "marcadores de tipo de evento"],
+      "viewport": "Hoje / Ontem com eventos datados; prazo vencendo em destaque âmbar no topo.",
+      "risk": "Feed não mostra o ranking; para decidir o gestor ainda abre a vaga.",
+      "html": ".impeccable/mocks/decision/atividade.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "challenger-catalogo",
+      "kind": "challenger",
+      "catalogId": "pop-culture-shelf-streaming-title-card-wall",
+      "label": "Parede de catálogo",
+      "verdict": "declined",
+      "lineage": "fileiras horizontais de streaming",
+      "palette": ["#141414", "#E50914"],
+      "materials": ["fileiras roláveis", "foco que cresce"],
+      "thesis": "Uma fileira horizontal por vaga, candidatos como capas.",
+      "viewport": "Fileiras por vaga, candidato em foco expandido.",
+      "risk": "Rolagem horizontal esconde a profundidade do ranking.",
+      "case": "O ranking precisa de leitura vertical; capas não carregam requisitos.",
+      "kept": "O item em foco cresce no lugar e diz o que é."
+    },
+    {
+      "id": "challenger-metro",
+      "kind": "challenger",
+      "catalogId": "wayfinding-cartography-signage-midnight-transit-diagram",
+      "label": "Mapa de metrô",
+      "verdict": "declined",
+      "lineage": "diagrama de transporte",
+      "palette": ["#0B1E3F", "#D7263D", "#2B59C3", "#F2A541"],
+      "materials": ["linhas e estações"],
+      "thesis": "Etapas da candidatura como estações de uma linha.",
+      "viewport": "Linha por vaga com candidatos parados em estações.",
+      "risk": "Troca o ranking por posição na linha; compatibilidade some.",
+      "case": "Bom para status, fraco para comparar candidatos.",
+      "kept": "Etapas desenhadas como trilho contínuo no detalhe do candidato."
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}

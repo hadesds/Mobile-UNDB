@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 
 import { buscarCurriculo } from "../api/curriculo";
 import { Edicao, FormularioItem } from "../components/curriculo/FormularioItem";
+import { ImportarArquivo } from "../components/curriculo/ImportarArquivo";
 import { CabecalhoTela } from "../components/Layout/CabecalhoTela";
 import { Carregando } from "../components/Layout/Carregando";
 import { Expansivel } from "../components/Movimento/Expansivel";
@@ -280,8 +281,16 @@ export default function Curriculo({ navigation }: Props) {
             </Cartao>
           </Surgir>
 
+          <Surgir indice={1}>
+            <ImportarArquivo
+              arquivo={dados.arquivo}
+              onEnviado={() => navigation.navigate("ImportarCurriculo")}
+              onRevisar={() => navigation.navigate("ImportarCurriculo")}
+            />
+          </Surgir>
+
           {SECOES.map((s, i) => (
-            <BlocoSecao key={s.chave} secao={s} curriculo={dados} onEditar={setEdicao} indice={i + 1} />
+            <BlocoSecao key={s.chave} secao={s} curriculo={dados} onEditar={setEdicao} indice={i + 2} />
           ))}
 
           <Text style={styles.rodape}>

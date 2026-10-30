@@ -165,6 +165,52 @@ const DESENHOS = {
       <Path d="m20.5 3.5-6.5 17-4-6.5-6.5-4Z" />
     </>
   ),
+  painel: (
+    <>
+      <Rect x={4} y={4} width={7} height={9} rx={1.8} />
+      <Rect x={13} y={4} width={7} height={5} rx={1.8} />
+      <Rect x={13} y={11} width={7} height={9} rx={1.8} />
+      <Rect x={4} y={15} width={7} height={5} rx={1.8} />
+    </>
+  ),
+  usuarios: (
+    <>
+      <Circle cx={9} cy={8.5} r={3.3} />
+      <Path d="M3 19.5a6 6 0 0 1 12 0" />
+      <Path d="M15.5 5.6a3.3 3.3 0 0 1 0 5.8M17.5 14a6 6 0 0 1 3.5 5.5" />
+    </>
+  ),
+  empresa: (
+    <>
+      <Path d="M4.5 20.5V5.5A1.5 1.5 0 0 1 6 4h7a1.5 1.5 0 0 1 1.5 1.5v15" />
+      <Path d="M14.5 10H18a1.5 1.5 0 0 1 1.5 1.5v9M3 20.5h18" />
+      <Path d="M8 8h3M8 11.5h3M8 15h3" />
+    </>
+  ),
+  importar: (
+    <>
+      <Path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+      <Path d="M4.5 14.5v3a2.5 2.5 0 0 0 2.5 2.5h10a2.5 2.5 0 0 0 2.5-2.5v-3" />
+    </>
+  ),
+  cadastros: (
+    <>
+      <Path d="M4.5 7.5 12 4l7.5 3.5L12 11Z" />
+      <Path d="m4.5 12 7.5 3.5 7.5-3.5M4.5 16.5 12 20l7.5-3.5" />
+    </>
+  ),
+  desfazer: (
+    <>
+      <Path d="M9 14.5 4.5 10 9 5.5" />
+      <Path d="M4.5 10h9.5a5.5 5.5 0 0 1 0 11H11" />
+    </>
+  ),
+  bloquear: (
+    <>
+      <Circle cx={12} cy={12} r={8.5} />
+      <Path d="m6 6 12 12" />
+    </>
+  ),
 } as const;
 
 export type NomeIcone = keyof typeof DESENHOS;

@@ -1,4 +1,5 @@
 from .curriculo import (
+    ArquivoCurriculo,
     Competencia,
     CompetenciaDoPerfil,
     CursoComplementar,
@@ -35,6 +36,7 @@ __all__ = [
     "Competencia",
     "SinonimoCompetencia",
     "PerfilCompetencias",
+    "ArquivoCurriculo",
     "Formacao",
     "Experiencia",
     "CompetenciaDoPerfil",

@@ -7,15 +7,25 @@ import { Carregando } from "../components/Layout/Carregando";
 import { IconeAba } from "../components/Layout/IconeAba";
 import type { NomeIcone } from "../components/Ui";
 import { colors } from "../constants/theme";
+import AdminCadastros from "../pages/admin/Cadastros";
+import AdminUsuarios, { type FiltroUsuarios } from "../pages/admin/Usuarios";
+import VisaoGeral from "../pages/admin/VisaoGeral";
 import Cadastro from "../pages/Cadastro";
 import CandidaturaDetalhe from "../pages/CandidaturaDetalhe";
 import Candidaturas from "../pages/Candidaturas";
 import Conta from "../pages/Conta";
 import Curriculo from "../pages/Curriculo";
+import ImportarCurriculo from "../pages/ImportarCurriculo";
+import CandidatoGestor from "../pages/gestor/CandidatoDetalhe";
+import EditarVaga from "../pages/gestor/EditarVaga";
+import Painel from "../pages/gestor/Painel";
+import VagaGestor from "../pages/gestor/VagaGestor";
+import VagasGestor from "../pages/gestor/VagasGestor";
 import Login from "../pages/Login";
 import VagaDetalhe from "../pages/VagaDetalhe";
 import Vagas from "../pages/Vagas";
 import { useAuth } from "./auth";
+import type { StatusVaga } from "../types";
 import { CandidaturasProvider } from "./candidaturas";
 
 // ---- Tipos das rotas -------------------------------------------------------
@@ -30,6 +40,7 @@ export type AppStackParams = {
   VagasLista: undefined;
   CandidaturasLista: undefined;
   CurriculoInicio: undefined;
+  ImportarCurriculo: undefined;
   VagaDetalhe: { id: number };
   Candidatura: { id: number; recemCriada?: boolean };
 };
@@ -41,11 +52,36 @@ export type AlunoTabsParams = {
   Conta: undefined;
 };
 
+/** Pilha das abas do gestor do TEIA. `pedido` força reaplicar um filtro vindo de outra tela. */
+export type GestorStackParams = {
+  PainelInicio: undefined;
+  VagasGestorLista: { status?: StatusVaga; pedido?: number } | undefined;
+  VagaGestor: { id: number };
+  EditarVaga: { id?: number };
+  Candidato: { id: number };
+};
+
+export type GestorTabsParams = {
+  PainelTab: undefined;
+  VagasTab: undefined;
+  Conta: undefined;
+};
+
+export type AdminTabsParams = {
+  VisaoGeral: undefined;
+  Cadastros: { secao?: "empresas" | "competencias" | "cursos"; filtro?: "atencao"; pedido?: number } | undefined;
+  Usuarios: { filtro?: FiltroUsuarios; pedido?: number } | undefined;
+  Conta: undefined;
+};
+
 // ---- Navegadores -----------------------------------------------------------
 
 const AuthStack = createNativeStackNavigator<AuthStackParams>();
 const Stack = createNativeStackNavigator<AppStackParams>();
 const Tabs = createBottomTabNavigator<AlunoTabsParams>();
+const GestorStack = createNativeStackNavigator<GestorStackParams>();
+const GestorTabsNav = createBottomTabNavigator<GestorTabsParams>();
+const AdminTabsNav = createBottomTabNavigator<AdminTabsParams>();
 
 const tema = {
   ...DefaultTheme,
@@ -101,6 +137,7 @@ function CurriculoNavigator() {
   return (
     <Stack.Navigator screenOptions={cabecalho}>
       <Stack.Screen name="CurriculoInicio" component={Curriculo} options={{ headerShown: false, title: "Currículo" }} />
+      <Stack.Screen name="ImportarCurriculo" component={ImportarCurriculo} options={{ title: "Revisar importação" }} />
     </Stack.Navigator>
   );
 }
@@ -110,26 +147,30 @@ const icone = (nome: NomeIcone) =>
     return <IconeAba nome={nome} focado={focused} cor={color} />;
   };
 
-function AlunoTabs() {
+/** Mesma barra de abas para aluno, gestor e admin. */
+function useOpcoesAbas() {
   const insets = useSafeAreaInsets();
+  return {
+    headerShown: false,
+    tabBarActiveTintColor: colors.primaryDark,
+    tabBarInactiveTintColor: colors.muted,
+    tabBarLabelStyle: { fontSize: 12, fontWeight: "600" as const },
+    tabBarStyle: {
+      height: 70 + insets.bottom,
+      paddingTop: 8,
+      paddingBottom: Math.max(insets.bottom, 8),
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    animation: "fade" as const,
+  };
+}
+
+function AlunoTabs() {
+  const opcoes = useOpcoesAbas();
   return (
     <CandidaturasProvider>
-      <Tabs.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.primaryDark,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
-          tabBarStyle: {
-            height: 70 + insets.bottom,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 8),
-            borderTopColor: colors.border,
-            backgroundColor: colors.surface,
-          },
-          animation: "fade",
-        }}
-      >
+      <Tabs.Navigator screenOptions={opcoes}>
         <Tabs.Screen name="VagasTab" component={VagasNavigator} options={{ title: "Vagas", tabBarIcon: icone("vagas") }} />
         <Tabs.Screen
           name="CandidaturasTab"
@@ -144,6 +185,59 @@ function AlunoTabs() {
         <Tabs.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
       </Tabs.Navigator>
     </CandidaturasProvider>
+  );
+}
+
+// ---- Gestor do TEIA --------------------------------------------------------
+
+const telasGestor = (
+  <>
+    <GestorStack.Screen name="VagaGestor" component={VagaGestor} options={{ title: "" }} />
+    <GestorStack.Screen name="EditarVaga" component={EditarVaga} options={{ title: "Vaga" }} />
+    <GestorStack.Screen name="Candidato" component={CandidatoGestor} options={{ title: "Candidatura" }} />
+  </>
+);
+
+function PainelNavigator() {
+  return (
+    <GestorStack.Navigator screenOptions={cabecalho}>
+      <GestorStack.Screen name="PainelInicio" component={Painel} options={{ headerShown: false, title: "Painel" }} />
+      {telasGestor}
+    </GestorStack.Navigator>
+  );
+}
+
+function VagasGestorNavigator() {
+  return (
+    <GestorStack.Navigator screenOptions={cabecalho}>
+      <GestorStack.Screen name="VagasGestorLista" component={VagasGestor} options={{ headerShown: false, title: "Vagas" }} />
+      {telasGestor}
+    </GestorStack.Navigator>
+  );
+}
+
+function GestorTabs() {
+  const opcoes = useOpcoesAbas();
+  return (
+    <GestorTabsNav.Navigator screenOptions={opcoes}>
+      <GestorTabsNav.Screen name="PainelTab" component={PainelNavigator} options={{ title: "Painel", tabBarIcon: icone("painel") }} />
+      <GestorTabsNav.Screen name="VagasTab" component={VagasGestorNavigator} options={{ title: "Vagas", tabBarIcon: icone("vagas") }} />
+      <GestorTabsNav.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
+    </GestorTabsNav.Navigator>
+  );
+}
+
+// ---- Administração ---------------------------------------------------------
+
+function AdminTabs() {
+  const opcoes = useOpcoesAbas();
+  return (
+    <AdminTabsNav.Navigator screenOptions={opcoes}>
+      <AdminTabsNav.Screen name="VisaoGeral" component={VisaoGeral} options={{ title: "Visão geral", tabBarIcon: icone("painel") }} />
+      <AdminTabsNav.Screen name="Cadastros" component={AdminCadastros} options={{ title: "Cadastros", tabBarIcon: icone("cadastros") }} />
+      <AdminTabsNav.Screen name="Usuarios" component={AdminUsuarios} options={{ title: "Usuários", tabBarIcon: icone("usuarios") }} />
+      <AdminTabsNav.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
+    </AdminTabsNav.Navigator>
   );
 }
 
@@ -166,9 +260,10 @@ export function RootNavigator() {
         <AuthNavigator />
       ) : usuario.perfil === "aluno" ? (
         <AlunoTabs />
+      ) : usuario.perfil === "gestor" ? (
+        <GestorTabs />
       ) : (
-        // Área do gestor ainda não foi construída: mostra a conta com o botão de sair.
-        <Conta />
+        <AdminTabs />
       )}
     </NavigationContainer>
   );

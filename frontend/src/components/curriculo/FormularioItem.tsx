@@ -28,7 +28,8 @@ import { Botao, Campo, Chip, Folha, Icone, Segmentado } from "../Ui";
 
 type ItemQualquer = Formacao | Experiencia | CompetenciaPerfil | IdiomaPerfil | CursoComplementar;
 
-export type Edicao = { secao: SecaoCurriculo; item?: ItemQualquer } | null;
+/** `item` edita um existente; `inicial` abre um novo já preenchido (ex.: sugestão do arquivo). */
+export type Edicao = { secao: SecaoCurriculo; item?: ItemQualquer; inicial?: Record<string, unknown> } | null;
 
 type Props = {
   edicao: Edicao;
@@ -58,7 +59,7 @@ const MENSAGENS: Record<SecaoCurriculo, [string, string, string]> = {
 type Valores = Record<string, string>;
 type Erros = Partial<Record<string, string>>;
 
-function valoresIniciais(secao: SecaoCurriculo, item?: ItemQualquer): Valores {
+function valoresIniciais(secao: SecaoCurriculo, item?: ItemQualquer | Record<string, unknown>): Valores {
   const i = (item ?? {}) as Record<string, unknown>;
   const s = (k: string) => (i[k] == null ? "" : String(i[k]));
   switch (secao) {
@@ -80,8 +81,8 @@ export function FormularioItem({ edicao, curriculo, onFechar, onConcluir }: Prop
   // Mantém a última edição enquanto a folha anima para fora.
   const ultima = useRef<NonNullable<Edicao>>({ secao: "formacoes" });
   if (edicao) ultima.current = edicao;
-  const { secao, item } = ultima.current;
-  const [v, setV] = useState<Valores>(() => valoresIniciais(secao, item));
+  const { secao, item, inicial } = ultima.current;
+  const [v, setV] = useState<Valores>(() => valoresIniciais(secao, item ?? inicial));
   const [atual, setAtual] = useState(true); // "em andamento"/"atual" para datas finais
   const [erros, setErros] = useState<Erros>({});
   const [salvando, setSalvando] = useState(false);
@@ -89,7 +90,7 @@ export function FormularioItem({ edicao, curriculo, onFechar, onConcluir }: Prop
 
   useEffect(() => {
     if (!edicao) return;
-    const iniciais = valoresIniciais(edicao.secao, edicao.item);
+    const iniciais = valoresIniciais(edicao.secao, edicao.item ?? edicao.inicial);
     setV(iniciais);
     setAtual(!iniciais.fim);
     setErros({});

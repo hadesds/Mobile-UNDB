@@ -170,6 +170,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Arquivos enviados (currículos). Não são servidos publicamente: só pela API, com login.
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

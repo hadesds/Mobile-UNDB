@@ -43,7 +43,9 @@ function mensagemDeErro(data: unknown, status: number): string {
 
 export async function request<T>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  // FormData (envio de arquivo) leva o próprio Content-Type com o boundary.
+  const formulario = typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (opts.body !== undefined && !formulario) headers["Content-Type"] = "application/json";
   if (opts.auth !== false && accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -53,7 +55,7 @@ export async function request<T>(path: string, opts: Options = {}): Promise<T> {
     res = await fetch(`${API_BASE}${path}`, {
       method: opts.method ?? "GET",
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: formulario ? (opts.body as FormData) : opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
     throw new ApiError(0, null, "Não foi possível conectar ao servidor.");

@@ -8,6 +8,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from backend.models import (
     VERSAO_TERMO_LGPD,
     Aluno,
+    ArquivoCurriculo,
     Analise,
     Candidatura,
     Competencia,
@@ -16,13 +17,18 @@ from backend.models import (
     CursoComplementar,
     Empresa,
     Experiencia,
+    Faculdade,
     Formacao,
+    Gestor,
     IdiomaPerfil,
+    NucleoCarreiras,
     PerfilCompetencias,
     RequisitoCompetencia,
     RequisitoIdioma,
+    SinonimoCompetencia,
     Usuario,
     Vaga,
+    normalizar_termo,
 )
 
 # ---------------------------------------------------------------------------
@@ -276,11 +282,19 @@ class IdiomaPerfilSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class ArquivoCurriculoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ArquivoCurriculo
+        fields = ["nome_original", "tipo", "tamanho", "paginas", "enviado_em"]
+        read_only_fields = fields
+
+
 class PerfilSerializer(serializers.ModelSerializer):
     """Visão completa (somente leitura) do perfil; edição é feita por seção."""
 
     completude = serializers.IntegerField(read_only=True)
     secoes = serializers.SerializerMethodField()
+    arquivo = serializers.SerializerMethodField()
     formacoes = FormacaoSerializer(many=True, read_only=True)
     experiencias = ExperienciaSerializer(many=True, read_only=True)
     competencias = CompetenciaDoPerfilSerializer(many=True, read_only=True)
@@ -298,12 +312,17 @@ class PerfilSerializer(serializers.ModelSerializer):
             "competencias",
             "idiomas",
             "cursos",
+            "arquivo",
             "atualizado_em",
         ]
         read_only_fields = fields
 
     def get_secoes(self, perfil):
         return perfil.secoes_preenchidas()
+
+    def get_arquivo(self, perfil):
+        arquivo = ArquivoCurriculo.objects.filter(perfil=perfil).first()
+        return ArquivoCurriculoSerializer(arquivo).data if arquivo else None
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +377,7 @@ class VagaSerializer(serializers.ModelSerializer):
     requisitos_competencia = RequisitoCompetenciaSerializer(many=True, required=False)
     requisitos_idioma = RequisitoIdiomaSerializer(many=True, required=False)
     gestor = serializers.PrimaryKeyRelatedField(read_only=True)
+    candidaturas = serializers.SerializerMethodField()
 
     class Meta:
         model = Vaga
@@ -366,6 +386,7 @@ class VagaSerializer(serializers.ModelSerializer):
             "empresa",
             "empresa_nome",
             "gestor",
+            "candidaturas",
             "titulo",
             "tipo",
             "modalidade",
@@ -380,10 +401,18 @@ class VagaSerializer(serializers.ModelSerializer):
             "criada_em",
             "atualizada_em",
         ]
-        read_only_fields = ["id", "gestor", "criada_em", "atualizada_em"]
+        read_only_fields = ["id", "gestor", "candidaturas", "criada_em", "atualizada_em"]
 
     def get_empresa_nome(self, vaga):
         return str(vaga.empresa)
+
+    def get_candidaturas(self, vaga):
+        """Total e quantas ainda esperam a decisão do gestor (status `analisada`)."""
+        total = getattr(vaga, "n_candidaturas", None)
+        if total is None:
+            qs = vaga.candidaturas.all()
+            return {"total": qs.count(), "aguardando": qs.filter(status=Candidatura.Status.ANALISADA).count()}
+        return {"total": total, "aguardando": vaga.n_aguardando}
 
     def validate_requisitos_competencia(self, itens):
         ids = [i["competencia"].id for i in itens]
@@ -577,3 +606,296 @@ class NovaCandidaturaSerializer(serializers.Serializer):
         if Candidatura.objects.filter(aluno=aluno, vaga=vaga).exists():
             raise serializers.ValidationError("Você já se candidatou a esta vaga.")
         return vaga
+
+
+# ---------------------------------------------------------------------------
+# Triagem (visão do gestor)
+# ---------------------------------------------------------------------------
+
+
+class AlunoResumoSerializer(serializers.ModelSerializer):
+    nome = serializers.CharField(source="usuario.nome", read_only=True)
+    email = serializers.EmailField(source="usuario.email", read_only=True)
+    curso = serializers.CharField(source="curso.nome", read_only=True)
+    consentimento_vigente = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Aluno
+        fields = ["id", "nome", "email", "matricula", "curso", "periodo", "consentimento_vigente"]
+        read_only_fields = fields
+
+
+def _encaminhamento(candidatura):
+    enc = getattr(candidatura, "encaminhamento", None)
+    if enc is None:
+        return None
+    return {
+        "observacao": enc.observacao,
+        "criado_em": enc.criado_em,
+        "gestor": enc.gestor.usuario.nome,
+    }
+
+
+class CandidatoSerializer(serializers.ModelSerializer):
+    """Uma candidatura vista pelo gestor: aluno, etapa e a análise mais recente."""
+
+    aluno = AlunoResumoSerializer(read_only=True)
+    analise = serializers.SerializerMethodField()
+    encaminhamento = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Candidatura
+        fields = ["id", "aluno", "status", "analise", "encaminhamento", "criada_em", "atualizada_em"]
+        read_only_fields = fields
+
+    def get_analise(self, candidatura):
+        ultima = _ultima_analise(candidatura)
+        return AnaliseSerializer(ultima).data if ultima else None
+
+    def get_encaminhamento(self, candidatura):
+        return _encaminhamento(candidatura)
+
+
+class CandidatoDetalheSerializer(CandidatoSerializer):
+    """Inclui vaga, histórico e o currículo atual (só com consentimento vigente)."""
+
+    vaga = VagaResumoSerializer(read_only=True)
+    historico = serializers.SerializerMethodField()
+    curriculo = serializers.SerializerMethodField()
+
+    class Meta(CandidatoSerializer.Meta):
+        fields = CandidatoSerializer.Meta.fields + ["vaga", "historico", "curriculo"]
+        read_only_fields = fields
+
+    def get_historico(self, candidatura):
+        return AnaliseResumoSerializer(candidatura.analises.all(), many=True).data
+
+    def get_curriculo(self, candidatura):
+        # LGPD: consentimento revogado = o TEIA deixa de ver o currículo.
+        aluno = candidatura.aluno
+        if not aluno.consentimento_vigente:
+            return None
+        perfil, _ = PerfilCompetencias.objects.get_or_create(aluno=aluno)
+        return PerfilSerializer(perfil).data
+
+
+class DecisaoSerializer(serializers.Serializer):
+    """Decisão humana do gestor sobre a candidatura."""
+
+    status = serializers.ChoiceField(choices=Candidatura.Status.choices)
+    observacao = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+# ---------------------------------------------------------------------------
+# Administração
+# ---------------------------------------------------------------------------
+
+
+class NucleoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NucleoCarreiras
+        fields = ["id", "nome"]
+        read_only_fields = fields
+
+
+class UsuarioAdminSerializer(serializers.ModelSerializer):
+    """Listagem e edição de contas pela administração."""
+
+    ativo = serializers.BooleanField(source="is_active", required=False)
+    detalhe = serializers.SerializerMethodField()
+    cargo = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=100)
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "nome", "email", "perfil", "ativo", "detalhe", "cargo", "date_joined", "last_login"]
+        read_only_fields = ["id", "email", "perfil", "detalhe", "date_joined", "last_login"]
+
+    def get_detalhe(self, user):
+        aluno = getattr(user, "aluno", None)
+        if aluno is not None:
+            return {
+                "matricula": aluno.matricula,
+                "curso": aluno.curso.nome,
+                "periodo": aluno.periodo,
+                "consentimento_vigente": aluno.consentimento_vigente,
+            }
+        gestor = getattr(user, "gestor", None)
+        if gestor is not None:
+            return {"cargo": gestor.cargo, "nucleo": gestor.nucleo.nome}
+        return None
+
+    def validate_ativo(self, ativo):
+        if not ativo and self.instance is not None and self.instance == self.context["request"].user:
+            raise serializers.ValidationError("Você não pode desativar a própria conta.")
+        return ativo
+
+    def update(self, instance, validated):
+        cargo = validated.pop("cargo", None)
+        instance = super().update(instance, validated)
+        gestor = getattr(instance, "gestor", None)
+        if cargo is not None and gestor is not None:
+            gestor.cargo = cargo
+            gestor.save(update_fields=["cargo"])
+        return instance
+
+
+class NovoGestorSerializer(serializers.Serializer):
+    """Cria a conta de gestor do TEIA (gestores não se cadastram sozinhos)."""
+
+    nome = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    nucleo = serializers.PrimaryKeyRelatedField(queryset=NucleoCarreiras.objects.all())
+    cargo = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if Usuario.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Já existe uma conta com este e-mail.")
+        return value
+
+    def validate_password(self, value):
+        validar_senha(value)
+        return value
+
+    @transaction.atomic
+    def create(self, validated):
+        usuario = Usuario.objects.create_user(
+            email=validated["email"],
+            password=validated["password"],
+            nome=validated["nome"],
+            perfil=Usuario.Perfil.GESTOR,
+        )
+        Gestor.objects.create(
+            usuario=usuario, nucleo=validated["nucleo"], cargo=validated.get("cargo", "")
+        )
+        return usuario
+
+
+class CompetenciaAdminSerializer(serializers.ModelSerializer):
+    """Vocabulário: a lista `sinonimos` (termos) substitui a anterior quando enviada."""
+
+    sinonimos = serializers.ListField(
+        child=serializers.CharField(max_length=100), required=False, write_only=True
+    )
+    em_uso = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Competencia
+        fields = ["id", "nome", "categoria", "ativa", "sinonimos", "em_uso"]
+        read_only_fields = ["id", "em_uso"]
+
+    def to_representation(self, inst):
+        data = super().to_representation(inst)
+        data["sinonimos"] = [s.termo for s in inst.sinonimos.all()]
+        return data
+
+    def get_em_uso(self, inst):
+        alunos = getattr(inst, "n_alunos", None)
+        vagas = getattr(inst, "n_vagas", None)
+        return {
+            "alunos": inst.perfis.count() if alunos is None else alunos,
+            "vagas": inst.requisitos.count() if vagas is None else vagas,
+        }
+
+    def validate_nome(self, nome):
+        nome = " ".join(nome.split())
+        chave = normalizar_termo(nome)
+        outras = Competencia.objects.filter(nome_normalizado=chave)
+        if self.instance is not None:
+            outras = outras.exclude(pk=self.instance.pk)
+        if outras.exists():
+            raise serializers.ValidationError("Já existe uma competência com este nome.")
+        sinonimo = SinonimoCompetencia.objects.filter(termo_normalizado=chave)
+        if self.instance is not None:
+            sinonimo = sinonimo.exclude(competencia=self.instance)
+        if sinonimo.exists():
+            raise serializers.ValidationError("Este nome já é sinônimo de outra competência.")
+        return nome
+
+    def validate_sinonimos(self, termos):
+        limpos, chaves = [], set()
+        for termo in termos:
+            termo = " ".join(termo.split())
+            chave = normalizar_termo(termo)
+            if not chave or chave in chaves:
+                continue
+            outra = Competencia.objects.filter(nome_normalizado=chave)
+            usado = SinonimoCompetencia.objects.filter(termo_normalizado=chave)
+            if self.instance is not None:
+                outra = outra.exclude(pk=self.instance.pk)
+                usado = usado.exclude(competencia=self.instance)
+            if outra.exists():
+                raise serializers.ValidationError(f"“{termo}” já é o nome de outra competência.")
+            if usado.exists():
+                raise serializers.ValidationError(f"“{termo}” já é sinônimo de outra competência.")
+            chaves.add(chave)
+            limpos.append(termo)
+        return limpos
+
+    def validate(self, attrs):
+        nome = attrs.get("nome", getattr(self.instance, "nome", ""))
+        chave = normalizar_termo(nome)
+        attrs["sinonimos"] = [
+            t for t in attrs.get("sinonimos", []) if normalizar_termo(t) != chave
+        ] if "sinonimos" in attrs else None
+        return attrs
+
+    @staticmethod
+    def _salvar_sinonimos(comp, termos):
+        if termos is None:
+            return
+        comp.sinonimos.all().delete()
+        for termo in termos:
+            SinonimoCompetencia.objects.create(competencia=comp, termo=termo)
+
+    @transaction.atomic
+    def create(self, validated):
+        termos = validated.pop("sinonimos", None)
+        comp = Competencia.objects.create(**validated)
+        self._salvar_sinonimos(comp, termos)
+        return comp
+
+    @transaction.atomic
+    def update(self, instance, validated):
+        termos = validated.pop("sinonimos", None)
+        instance = super().update(instance, validated)
+        self._salvar_sinonimos(instance, termos)
+        return instance
+
+
+class CursoAdminSerializer(serializers.ModelSerializer):
+    faculdade = serializers.PrimaryKeyRelatedField(
+        queryset=Faculdade.objects.all(), required=False
+    )
+    alunos = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Curso
+        fields = ["id", "nome", "faculdade", "total_periodos", "ativo", "alunos"]
+        read_only_fields = ["id", "alunos"]
+        validators = []  # nome único por faculdade: checado em validate() com a faculdade padrão
+
+    def get_alunos(self, curso):
+        n = getattr(curso, "n_alunos", None)
+        return n if n is not None else curso.alunos.count()
+
+    def validate_total_periodos(self, valor):
+        if not 1 <= valor <= 20:
+            raise serializers.ValidationError("Informe entre 1 e 20 períodos.")
+        return valor
+
+    def validate(self, attrs):
+        faculdade = attrs.get("faculdade") or getattr(self.instance, "faculdade", None)
+        if faculdade is None:
+            faculdade = Faculdade.objects.order_by("id").first()
+            if faculdade is None:
+                raise serializers.ValidationError({"faculdade": "Cadastre uma faculdade antes."})
+            attrs["faculdade"] = faculdade
+        nome = attrs.get("nome", getattr(self.instance, "nome", ""))
+        repetido = Curso.objects.filter(faculdade=faculdade, nome__iexact=nome.strip())
+        if self.instance is not None:
+            repetido = repetido.exclude(pk=self.instance.pk)
+        if repetido.exists():
+            raise serializers.ValidationError({"nome": "Este curso já existe."})
+        return attrs

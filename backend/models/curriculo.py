@@ -1,7 +1,11 @@
 import unicodedata
+import uuid
+from pathlib import Path
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 from .usuarios import Aluno
 
@@ -275,3 +279,46 @@ class CursoComplementar(models.Model):
 
     def __str__(self) -> str:
         return self.nome
+
+
+# --------------------------------------------------------------------------
+# Arquivo de currículo enviado pelo aluno (PDF/DOCX)
+# --------------------------------------------------------------------------
+
+
+def _caminho_arquivo(instancia, nome: str) -> str:
+    # Nome aleatório: o nome original (que costuma ter o nome do aluno) fica só no banco.
+    return f"curriculos/{uuid.uuid4().hex}{Path(nome).suffix.lower()}"
+
+
+class ArquivoCurriculo(models.Model):
+    """O arquivo original do aluno e o texto lido dele (base das sugestões de preenchimento)."""
+
+    class Tipo(models.TextChoices):
+        PDF = "pdf", "PDF"
+        DOCX = "docx", "Word (DOCX)"
+
+    perfil = models.OneToOneField(
+        PerfilCompetencias, on_delete=models.CASCADE, related_name="arquivo"
+    )
+    arquivo = models.FileField(upload_to=_caminho_arquivo)
+    nome_original = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=4, choices=Tipo.choices)
+    tamanho = models.PositiveIntegerField(help_text="Em bytes.")
+    paginas = models.PositiveSmallIntegerField(null=True, blank=True)
+    texto = models.TextField(blank=True)
+    enviado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "arquivo de currículo"
+        verbose_name_plural = "arquivos de currículo"
+
+    def __str__(self) -> str:
+        return self.nome_original
+
+
+@receiver(post_delete, sender=ArquivoCurriculo)
+def _apagar_arquivo(sender, instance, **kwargs):
+    """Remover o registro (inclusive em cascata) apaga também o arquivo do disco."""
+    if instance.arquivo:
+        instance.arquivo.delete(save=False)
