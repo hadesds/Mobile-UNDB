@@ -102,7 +102,7 @@ Para usar SQLite (sem Postgres), deixe `POSTGRES_DB` vazio no `.env`.
 | Variável | Descrição | Padrão no `.env.example` |
 | --- | --- | --- |
 | `DJANGO_SECRET_KEY` | Chave secreta do Django | `dev-only-troque-em-producao` |
-| `DJANGO_DEBUG` | Modo debug | `True` |
+| `DJANGO_DEBUG` | Modo debug (sem a variável = `False`) | `True` |
 | `DJANGO_ALLOWED_HOSTS` | Hosts permitidos, separados por vírgula (inclua o IP da máquina para testar no celular) | `localhost,127.0.0.1,IP_WIN` |
 | `POSTGRES_DB` | Nome do banco. **Vazio = usa SQLite** | `teia` |
 | `POSTGRES_USER` | Usuário do banco | `postgres` |
@@ -150,6 +150,7 @@ MobileUNDB/
 │   └── README.md             # APK via GitHub Releases e deploy na Vercel
 ├── Dockerfile.dev
 ├── docker-compose.dev.yml    # serviços: db, backend, site
+├── render.yaml               # deploy do backend no Render
 ├── .env.example
 ├── manage.py
 └── requirements.txt
@@ -240,6 +241,40 @@ As variáveis da API (`ALUNO_EMAIL_DOMINIOS`, `JWT_*`) estão na tabela de
 `nao_identificado`) com detalhe, e o score é a fração de requisitos com evidência.
 **Provisório:** pesos e faixas ainda serão validados com o TEIA. O resultado só orienta;
 nunca aprova nem elimina ninguém.
+
+## Deploy do backend (Render + Supabase)
+
+Backend no **Render** (plano grátis), banco no **Supabase** (Postgres grátis). A configuração
+está em [`render.yaml`](render.yaml).
+
+1. **Supabase:** crie um projeto e anote a senha do banco. Em **Connect → Connection string**,
+   copie a URI do **Session pooler** (porta 5432, host `aws-...pooler.supabase.com`). Não use
+   a "Direct connection": ela só funciona via IPv6, e o Render não tem saída IPv6.
+   Troque `[YOUR-PASSWORD]` pela senha.
+2. **Render:** **New → Blueprint**, escolha este repositório e a branch. Ele lê o `render.yaml`
+   e pede `DATABASE_URL` (a URI do passo 1) e `SEED_SENHA`.
+3. No primeiro deploy o start roda as migrações e o seed (`SEED_DEMO=1`). A API fica em
+   `https://teia-api.onrender.com/api/v1/` (o nome pode variar se já existir).
+4. **APK:** troque `EXPO_PUBLIC_API_URL` no `frontend/eas.json` pela URL do Render e gere o APK
+   de novo.
+
+Variáveis de produção (o `render.yaml` já define a maioria):
+
+| Variável | Valor |
+| --- | --- |
+| `DATABASE_URL` | URI do Session pooler do Supabase (tem prioridade sobre `POSTGRES_*`; SSL obrigatório) |
+| `DJANGO_SECRET_KEY` | gerada pelo Render |
+| `DJANGO_DEBUG` | `False` (padrão quando a variável não existe) |
+| `DJANGO_ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` | opcionais: o domínio `*.onrender.com` é incluído automaticamente |
+| `SEED_DEMO` / `SEED_SENHA` | dados de demonstração |
+
+Limitações do plano grátis:
+
+- O serviço do Render **dorme após ~15 min sem uso**; a primeira requisição leva de 30 a 60 s.
+  Antes de uma apresentação, abra a URL da API para acordá-lo.
+- O projeto do Supabase **pausa após uma semana sem uso**; reative pelo painel.
+- O disco do Render é temporário: **arquivos de currículo enviados (`MEDIA_ROOT`) somem a cada
+  deploy ou reinício.** Para guardar de vez, seria preciso um storage externo (ex.: Supabase Storage).
 
 ## Frontend (React Native + Expo)
 

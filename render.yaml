@@ -1,0 +1,26 @@
+# Blueprint do Render: backend Django (plano grátis). Banco no Supabase via DATABASE_URL.
+# No painel do Render: New > Blueprint > escolha este repositório.
+services:
+  - type: web
+    name: teia-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    # Mesmo entrypoint do Docker: migra, roda o seed se SEED_DEMO=1 e sobe o gunicorn.
+    startCommand: sh docker/entrypoint.dev.sh gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers 2
+    healthCheckPath: /admin/login/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.8"
+      - key: DATABASE_URL
+        sync: false # string do "Session pooler" do Supabase (pedida na criação)
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: ALUNO_EMAIL_DOMINIOS
+        value: aluno.undb.edu.br
+      - key: SEED_DEMO
+        value: "1"
+      - key: SEED_SENHA
+        sync: false
