@@ -35,6 +35,14 @@ services:
       db:
         condition: service_healthy
 
+  site:
+    image: nginx:alpine
+    container_name: teia-site
+    ports:
+      - "8080:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+
 volumes:
   pgdata:
     name: teia_pgdata

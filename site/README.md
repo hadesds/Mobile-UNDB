@@ -4,6 +4,9 @@ Página estática (HTML + CSS, sem build) que apresenta o app e oferece o APK pa
 
 ## Ver localmente
 
+O `docker-compose.dev.yml` já sobe o site junto (serviço `site`, nginx) em <http://localhost:8080>.
+Sem Docker:
+
 ```bash
 cd site
 python3 -m http.server 8080

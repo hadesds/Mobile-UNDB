@@ -1,14 +1,14 @@
-# TEIA · Currículo Sob Medida — Backend
+# TEIA · Currículo Sob Medida
 
-API (Django) do aplicativo mobile **Currículo Sob Medida**, desenvolvido na disciplina
+Backend (Django), app mobile (Expo) e site de apresentação do **Currículo Sob Medida**, aplicativo desenvolvido na disciplina
 Programação Mobile (Engenharia de Software · UNDB · 2026.2) para o **Núcleo de Carreiras TEIA**.
 
 O app compara o currículo do aluno com os requisitos de cada vaga, devolve feedback ao
 aluno e entrega ao gestor do TEIA uma lista de candidatos ordenada por compatibilidade,
 com justificativa. **A decisão final é sempre humana.**
 
-> Estado atual: modelos de dados e admin prontos. API REST, autenticação por token e
-> motor de compatibilidade ainda não foram implementados.
+> Estado atual: modelos, admin, API REST com JWT, motor de compatibilidade por regras
+> (provisório), seed de demonstração, app mobile e site de apresentação com download do APK.
 
 ## Stack
 
@@ -16,7 +16,8 @@ com justificativa. **A decisão final é sempre humana.**
 | --- | --- |
 | Backend | Django 5.2 + Django REST Framework |
 | Banco | PostgreSQL 17 (SQLite como alternativa rápida em dev) |
-| Frontend (outro repositório/pasta) | React Native + Expo |
+| App mobile (`frontend/`) | React Native + Expo SDK 58 + TypeScript |
+| Site de apresentação (`site/`) | HTML + CSS estático, servido por nginx |
 | Containers | Docker + Docker Compose (ambiente de desenvolvimento) |
 
 ## Pré-requisitos
@@ -34,16 +35,27 @@ cd MobileUNDB
 # 2. criar o arquivo de variáveis de ambiente
 cp .env.example .env
 
-# 3. subir banco + backend (aplica as migrações automaticamente)
+# 3. subir banco + backend + site (aplica as migrações e, com SEED_DEMO=1, popula dados de demo)
 docker compose -f docker-compose.dev.yml up --build
 
 # 4. em outro terminal: criar o superusuário do admin
 docker compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser
 ```
 
-Pronto: o admin fica em <http://localhost:8000/admin/>.
+Pronto:
 
-Dica: para não digitar `-f` sempre, use um alias:
+| Serviço | Endereço |
+| --- | --- |
+| Admin do Django | <http://localhost:8000/admin/> |
+| API | <http://localhost:8000/api/v1/> |
+| Site de apresentação | <http://localhost:8080> |
+| PostgreSQL | `localhost:5432` |
+
+Com `SEED_DEMO=1` (padrão do `.env.example`) já existem usuários de teste; veja
+[Dados de demonstração](#dados-de-demonstração-seed).
+
+Dica: o `.env.example` já define `COMPOSE_FILE=docker-compose.dev.yml`, então
+`docker compose up` funciona sem `-f`. Outra opção é um alias:
 
 ```bash
 alias dcdev='docker compose -f docker-compose.dev.yml'
@@ -61,7 +73,10 @@ dcdev down                                    # para os containers (dados ficam 
 ```
 
 O código é montado por volume dentro do container, então o servidor recarrega sozinho
-ao salvar arquivos.
+ao salvar arquivos. O mesmo vale para o site: editou algo em `site/`, é só recarregar a página.
+
+Ao subir, o container do backend roda `docker/entrypoint.dev.sh`: aplica as migrações e,
+se `SEED_DEMO=1`, executa `python manage.py seed`.
 
 ## Rodando sem Docker (venv)
 
@@ -87,39 +102,78 @@ Para usar SQLite (sem Postgres), deixe `POSTGRES_DB` vazio no `.env`.
 | --- | --- | --- |
 | `DJANGO_SECRET_KEY` | Chave secreta do Django | `dev-only-troque-em-producao` |
 | `DJANGO_DEBUG` | Modo debug | `True` |
-| `DJANGO_ALLOWED_HOSTS` | Hosts permitidos, separados por vírgula | `localhost,127.0.0.1` |
+| `DJANGO_ALLOWED_HOSTS` | Hosts permitidos, separados por vírgula (inclua o IP da máquina para testar no celular) | `localhost,127.0.0.1,IP_WIN` |
 | `POSTGRES_DB` | Nome do banco. **Vazio = usa SQLite** | `teia` |
 | `POSTGRES_USER` | Usuário do banco | `postgres` |
 | `POSTGRES_PASSWORD` | Senha do banco | `postgres` |
 | `POSTGRES_HOST` | Host do banco (no compose é sobrescrito para `db`) | `localhost` |
 | `POSTGRES_PORT` | Porta do banco | `5432` |
+| `COMPOSE_FILE` | Arquivo usado pelo `docker compose` (dispensa o `-f`) | `docker-compose.dev.yml` |
+| `ALUNO_EMAIL_DOMINIOS` | Domínios aceitos no auto-cadastro. Vazio = qualquer e-mail | `aluno.undb.edu.br` |
+| `JWT_ACCESS_MINUTES` | Validade do access token (minutos) | `30` (padrão do settings) |
+| `JWT_REFRESH_DAYS` | Validade do refresh token (dias) | `7` (padrão do settings) |
+| `SEED_DEMO` | `1` = popula dados de demonstração ao subir o container | `1` |
+| `SEED_SENHA` | Senha dos usuários criados pelo seed (só na criação) | `Teia@Demo2026` |
 
 O `.env` **não** é versionado. Se a porta 5432 já estiver ocupada na sua máquina,
 mude o mapeamento em `docker-compose.dev.yml` (ex.: `"5433:5432"`) e o `POSTGRES_PORT`.
+O mesmo vale para a 8080 do site (ex.: `"8081:80"`).
 
 ## Estrutura do projeto
 
 ```
 MobileUNDB/
 ├── backend/                  # app Django principal
+│   ├── api/                  # API REST (DRF): serializers, views, urls, permissões
+│   ├── management/           # comando `seed` e dados fictícios (seed_dados.py)
 │   ├── migrations/
 │   ├── models/               # um arquivo por domínio, exportados em __init__.py
 │   │   ├── faculdade.py      # Faculdade, Curso, NucleoCarreiras
 │   │   ├── usuarios.py       # Usuario, Aluno, Gestor
 │   │   ├── curriculo.py      # Competencia, PerfilCompetencias e seções
 │   │   └── vagas.py          # Empresa, Vaga, Candidatura, Analise, Encaminhamento
+│   ├── tests/                # testes da API, candidaturas e seed
+│   ├── compatibilidade.py    # motor de compatibilidade por regras
 │   └── admin.py
 ├── config/                   # settings, urls, wsgi/asgi
+├── docker/
+│   └── entrypoint.dev.sh     # migrações + seed ao subir o container
 ├── docs/
-│   └── modelo-de-dados.md    # diagrama e dicionário de campos
+│   ├── api.md                # endpoints da API
+│   ├── modelo-de-dados.md    # diagrama e dicionário de campos
+│   └── conectar-expo-qrcode.md  # rodar o app no celular (WSL + Expo Go)
+├── frontend/                 # app mobile (Expo / React Native)
+├── site/                     # site de apresentação + download do APK
+│   ├── index.html
+│   ├── styles.css
+│   └── downloads/            # coloque aqui o curriculo-sob-medida.apk
 ├── Dockerfile.dev
-├── docker-compose.dev.yml
+├── docker-compose.dev.yml    # serviços: db, backend, site
 ├── .env.example
 ├── manage.py
 └── requirements.txt
 ```
 
-## Populando dados para testar (pelo admin)
+## Dados de demonstração (seed)
+
+Com `SEED_DEMO=1` o seed roda sozinho ao subir o backend. Para rodar na mão:
+
+```bash
+dcdev exec backend python manage.py seed               # cria/atualiza tudo
+dcdev exec backend python manage.py seed --sem-usuarios
+```
+
+É idempotente: pode rodar várias vezes; senhas de usuários existentes não são alteradas.
+Cria faculdade, cursos, o núcleo TEIA, competências com sinônimos, empresas, vagas e
+usuários. Logins (senha = `SEED_SENHA`, padrão `Teia@Demo2026`):
+
+| Perfil | E-mail |
+| --- | --- |
+| Admin | `admin@undb.edu.br` |
+| Gestor do TEIA | `gestor.teia@undb.edu.br` |
+| Aluno | `marina.costa@aluno.undb.edu.br` (há outros alunos `@aluno.undb.edu.br`) |
+
+## Populando dados na mão (pelo admin)
 
 A ordem importa por causa das chaves estrangeiras:
 
@@ -163,26 +217,71 @@ endpoints em [docs/api.md](docs/api.md).
 ```bash
 pip install -r requirements.txt
 python manage.py migrate        # inclui as tabelas de blacklist do JWT
-python manage.py test           # 33 testes de API
+python manage.py test           # testes de API, candidaturas e seed
 ```
 
-Variáveis novas no `.env`:
+As variáveis da API (`ALUNO_EMAIL_DOMINIOS`, `JWT_*`) estão na tabela de
+[variáveis de ambiente](#variáveis-de-ambiente-env).
 
-| Variável | Padrão | Função |
-|---|---|---|
-| `ALUNO_EMAIL_DOMINIOS` | `aluno.undb.edu.br` | Domínios aceitos no auto-cadastro. Vazio = qualquer e-mail |
-| `JWT_ACCESS_MINUTES` | `30` | Validade do access token |
-| `JWT_REFRESH_DAYS` | `7` | Validade do refresh token |
+### Motor de compatibilidade
+
+`backend/compatibilidade.py` compara o perfil do aluno com os requisitos da vaga
+(competências e idiomas). Cada requisito recebe um status (`encontrado`, `diferente` ou
+`nao_identificado`) com detalhe, e o score é a fração de requisitos com evidência.
+**Provisório:** pesos e faixas ainda serão validados com o TEIA. O resultado só orienta;
+nunca aprova nem elimina ninguém.
 
 ## Frontend (React Native + Expo)
 
-Pasta `frontend/` (Expo SDK 57, TypeScript). Requer Node 20+.
+Pasta `frontend/` (Expo SDK 58, TypeScript). Requer Node 20+.
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env     # ajuste EXPO_PUBLIC_API_URL (ver comentários em src/config/env.ts)
+echo "EXPO_PUBLIC_API_URL=http://localhost:8000" > .env   # ver opções abaixo
 npx expo start
 ```
 
-Estrutura: `src/api` (chamadas HTTP), `src/screens`, `src/theme`, `src/config`.
+Valores de `EXPO_PUBLIC_API_URL` (comentados em `src/lib/env.ts`):
+
+- Emulador Android: `http://10.0.2.2:8000`
+- Simulador iOS / Expo Web: `http://localhost:8000`
+- Celular físico: `http://<IP-da-sua-máquina>:8000` (o IP também precisa estar em `DJANGO_ALLOWED_HOSTS`)
+
+Para rodar no celular com Expo Go (Windows + WSL2), siga
+[docs/conectar-expo-qrcode.md](docs/conectar-expo-qrcode.md).
+
+Estrutura de `frontend/src`:
+
+| Pasta | Conteúdo |
+| --- | --- |
+| `api/` | chamadas HTTP por domínio (auth, vagas, currículo, candidaturas, cursos) |
+| `pages/` | telas: Login, Cadastro, Vagas, VagaDetalhe, Currículo, Candidaturas, Conta |
+| `components/` | `Ui/` (botões, campos, chips…), `Layout/`, `Movimento/` (animações) e componentes por domínio |
+| `lib/` | cliente da API, autenticação, navegação, armazenamento, `env.ts` |
+| `constants/` | tema visual (`theme.ts`) e texto do termo LGPD (`termos.ts`) |
+| `hooks/`, `utils/`, `types/` | hooks, formatação/compatibilidade e tipos compartilhados |
+
+## Site de apresentação e download do APK
+
+Pasta `site/`: página estática que apresenta o app e tem o botão para baixar o APK.
+Sobe junto com o compose (serviço `site`, nginx) em <http://localhost:8080>. Sem Docker:
+
+```bash
+cd site && python3 -m http.server 8080
+```
+
+**Publicar o APK:** os botões apontam para `site/downloads/curriculo-sob-medida.apk`.
+Enquanto o arquivo não existir, a página desativa os botões e mostra "disponível em breve".
+Para gerar o APK com o EAS:
+
+```bash
+cd frontend
+npx eas-cli login
+npx eas-cli build -p android --profile preview   # perfil com "buildType": "apk" no eas.json
+```
+
+Salve o arquivo gerado como `site/downloads/curriculo-sob-medida.apk`. Para um link
+público, publique a pasta `site/` em hospedagem estática (Netlify, GitHub Pages, Vercel).
+Ao lançar versão nova, atualize o texto "versão 1.0.0" em `site/index.html`.
+Detalhes em [site/README.md](site/README.md).
