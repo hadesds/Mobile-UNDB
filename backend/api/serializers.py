@@ -8,6 +8,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from backend.models import (
     VERSAO_TERMO_LGPD,
     Aluno,
+    Analise,
+    Candidatura,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -488,3 +490,90 @@ class VagaAlunoSerializer(serializers.ModelSerializer):
 
     def get_empresa(self, vaga):
         return str(vaga.empresa)
+
+# ---------------------------------------------------------------------------
+# Candidaturas (visão do aluno)
+# ---------------------------------------------------------------------------
+
+
+class VagaResumoSerializer(serializers.ModelSerializer):
+    empresa = serializers.CharField(source="empresa.__str__", read_only=True)
+
+    class Meta:
+        model = Vaga
+        fields = ["id", "titulo", "empresa", "tipo", "modalidade", "prazo"]
+        read_only_fields = fields
+
+
+class AnaliseSerializer(serializers.ModelSerializer):
+    faixa = serializers.CharField(read_only=True)
+    itens = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Analise
+        fields = ["id", "score", "faixa", "itens", "feedback_texto", "versao_motor", "criada_em"]
+        read_only_fields = fields
+
+    def get_itens(self, analise):
+        return list(analise.requisitos_atendidos) + list(analise.requisitos_faltantes)
+
+
+class AnaliseResumoSerializer(serializers.ModelSerializer):
+    faixa = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Analise
+        fields = ["id", "score", "faixa", "criada_em"]
+        read_only_fields = fields
+
+
+def _ultima_analise(candidatura):
+    # Usa o prefetch quando existir (as análises já vêm ordenadas da mais nova).
+    analises = list(candidatura.analises.all())
+    return analises[0] if analises else None
+
+
+class CandidaturaListaSerializer(serializers.ModelSerializer):
+    vaga = VagaResumoSerializer(read_only=True)
+    analise = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Candidatura
+        fields = ["id", "vaga", "status", "analise", "criada_em", "atualizada_em"]
+        read_only_fields = fields
+
+    def get_analise(self, candidatura):
+        ultima = _ultima_analise(candidatura)
+        return AnaliseResumoSerializer(ultima).data if ultima else None
+
+
+class CandidaturaDetalheSerializer(CandidaturaListaSerializer):
+    historico = serializers.SerializerMethodField()
+    encaminhada_em = serializers.SerializerMethodField()
+
+    class Meta(CandidaturaListaSerializer.Meta):
+        fields = CandidaturaListaSerializer.Meta.fields + ["historico", "encaminhada_em"]
+        read_only_fields = fields
+
+    def get_analise(self, candidatura):
+        ultima = _ultima_analise(candidatura)
+        return AnaliseSerializer(ultima).data if ultima else None
+
+    def get_historico(self, candidatura):
+        return AnaliseResumoSerializer(candidatura.analises.all(), many=True).data
+
+    def get_encaminhada_em(self, candidatura):
+        enc = getattr(candidatura, "encaminhamento", None)
+        return enc.criado_em if enc else None
+
+
+class NovaCandidaturaSerializer(serializers.Serializer):
+    vaga = serializers.PrimaryKeyRelatedField(queryset=Vaga.objects.all())
+
+    def validate_vaga(self, vaga):
+        if not vaga.esta_aberta:
+            raise serializers.ValidationError("Esta vaga não está aberta para candidaturas.")
+        aluno = self.context["aluno"]
+        if Candidatura.objects.filter(aluno=aluno, vaga=vaga).exists():
+            raise serializers.ValidationError("Você já se candidatou a esta vaga.")
+        return vaga

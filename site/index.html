@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Currículo Sob Medida · TEIA</title>
+  <meta name="description" content="App do Núcleo de Carreiras TEIA que compara seu currículo com os requisitos de cada vaga e mostra, com justificativa, o quanto você se encaixa.">
+  <meta name="theme-color" content="#CC004C">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23CC004C'/%3E%3Cpath d='M9 10h14M16 10v13' stroke='white' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo__linha">
+      <a class="marca" href="#" aria-label="Currículo Sob Medida, início">
+        <span class="marca__selo" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M9 10h14M16 10v13" /></svg>
+        </span>
+        <span class="marca__nome">Currículo Sob Medida <small>TEIA · UNDB</small></span>
+      </a>
+      <nav class="topo__nav" aria-label="Seções">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#para-quem">Para quem</a>
+        <a href="#instalar">Instalar</a>
+      </nav>
+      <a class="botao botao--pequeno" href="downloads/curriculo-sob-medida.apk" download data-apk>Baixar APK</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero__grade">
+        <div class="hero__texto">
+          <h1>Saiba o quanto você combina com a vaga <em>antes</em> de se candidatar.</h1>
+          <p class="hero__lead">
+            O app lê o seu currículo, compara com cada requisito da vaga e mostra o que já
+            tem evidência, o que falta e o que está diferente. Sem caixa-preta: cada
+            percentual vem com justificativa.
+          </p>
+          <div class="hero__acoes">
+            <a class="botao" href="downloads/curriculo-sob-medida.apk" download data-apk>
+              <svg class="botao__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" /></svg>
+              Baixar para Android
+            </a>
+            <a class="botao botao--fantasma" href="#como-funciona">Ver como funciona</a>
+          </div>
+          <p class="hero__nota" data-apk-nota>Arquivo APK · Android 7.0 ou superior</p>
+        </div>
+
+        <!-- Mockup do app -->
+        <div class="celular" aria-hidden="true">
+          <div class="celular__tela">
+            <div class="app__barra"><span>9:41</span><span class="app__sinais"></span></div>
+            <div class="app__empresa">
+              <span class="app__avatar">LT</span>
+              <span>Lumen Tecnologia</span>
+            </div>
+            <p class="app__titulo">Estágio em Desenvolvimento Mobile</p>
+            <div class="app__chips">
+              <span class="chip chip--marca">Estágio</span>
+              <span class="chip">Híbrido</span>
+            </div>
+
+            <div class="app__cartao app__compat">
+              <svg class="anel" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" class="anel__fundo" />
+                <circle cx="60" cy="60" r="52" class="anel__valor" />
+              </svg>
+              <div class="anel__numero"><strong>78%</strong><span>compatível</span></div>
+              <p>7 de 9 requisitos com evidência no seu currículo</p>
+            </div>
+
+            <ul class="app__requisitos">
+              <li><span class="ponto ponto--ok"></span>React Native<small>Projeto “Agenda UNDB”</small></li>
+              <li><span class="ponto ponto--ok"></span>Git e GitHub<small>Experiência no TEIA Lab</small></li>
+              <li><span class="ponto ponto--dif"></span>Inglês avançado<small>Você informou intermediário</small></li>
+              <li><span class="ponto ponto--nao"></span>Testes automatizados<small>Não identificado</small></li>
+            </ul>
+
+            <div class="app__botao">Analisar e me candidatar</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Como funciona -->
+    <section class="secao" id="como-funciona">
+      <div class="container">
+        <h2 class="secao__titulo">Do currículo ao encaminhamento, em três passos</h2>
+        <ol class="passos">
+          <li>
+            <span class="passos__num">1</span>
+            <h3>Monte seu currículo</h3>
+            <p>Cadastre formação, experiências, projetos, competências e idiomas uma vez só. O app reaproveita tudo em cada vaga.</p>
+          </li>
+          <li>
+            <span class="passos__num">2</span>
+            <h3>Veja a compatibilidade</h3>
+            <p>Para cada vaga, o app cruza os requisitos com o seu currículo e aponta onde está a evidência de cada um.</p>
+          </li>
+          <li>
+            <span class="passos__num">3</span>
+            <h3>Candidate-se e acompanhe</h3>
+            <p>Revise antes de enviar. Depois, acompanhe o status: analisada, encaminhada, em processo ou encerrada.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Para quem -->
+    <section class="secao secao--alt" id="para-quem">
+      <div class="container publicos">
+        <article class="publico">
+          <p class="sobretitulo">Para o aluno</p>
+          <h2>Um retorno claro, não um “não” sem explicação.</h2>
+          <ul class="lista">
+            <li>Percentual de compatibilidade com cada vaga aberta</li>
+            <li>Requisito a requisito: encontrado, não identificado ou diferente</li>
+            <li>Filtros por tipo de vaga, modalidade e prazo de inscrição</li>
+            <li>Histórico e status de todas as suas candidaturas</li>
+          </ul>
+        </article>
+        <article class="publico">
+          <p class="sobretitulo">Para o gestor do TEIA</p>
+          <h2>Candidatos ordenados, com o porquê de cada posição.</h2>
+          <ul class="lista">
+            <li>Lista de candidatos por vaga, ordenada por compatibilidade</li>
+            <li>Justificativa que mostra de onde veio cada ponto</li>
+            <li>Menos tempo lendo currículos, mais tempo conversando com alunos</li>
+            <li>A decisão de quem é encaminhado continua sendo sua</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- Princípios -->
+    <section class="secao">
+      <div class="container principios">
+        <div class="principio">
+          <h3>A decisão final é humana</h3>
+          <p>O app ordena e explica. Quem decide o encaminhamento é sempre a equipe do TEIA.</p>
+        </div>
+        <div class="principio">
+          <h3>Transparente por padrão</h3>
+          <p>Nenhum número aparece sem a lista de requisitos que o justifica.</p>
+        </div>
+        <div class="principio">
+          <h3>Seus dados, seu consentimento</h3>
+          <p>O tratamento do currículo segue a LGPD e pode ser revogado a qualquer momento.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Instalar -->
+    <section class="secao secao--destaque" id="instalar">
+      <div class="container instalar">
+        <div>
+          <h2>Instale no seu Android</h2>
+          <p>O app ainda não está na Play Store. A instalação é feita pelo arquivo APK:</p>
+          <ol class="instalar__passos">
+            <li>Toque em <strong>Baixar APK</strong> pelo navegador do celular.</li>
+            <li>Abra o arquivo baixado. Se o Android pedir, permita a instalação de apps desta fonte.</li>
+            <li>Toque em <strong>Instalar</strong>, abra o app e entre com seu e-mail institucional.</li>
+          </ol>
+        </div>
+        <div class="instalar__cartao">
+          <p class="instalar__nome">Currículo Sob Medida</p>
+          <p class="instalar__meta">Android · versão 1.0.0</p>
+          <a class="botao botao--claro" href="downloads/curriculo-sob-medida.apk" download data-apk>
+            <svg class="botao__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" /></svg>
+            Baixar APK
+          </a>
+          <p class="instalar__aviso" data-apk-nota>Usa iPhone? Por enquanto, só Android.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="container rodape__linha">
+      <p>Currículo Sob Medida · Núcleo de Carreiras TEIA</p>
+      <p>Projeto da disciplina Programação Mobile · Engenharia de Software · UNDB · 2026.2</p>
+    </div>
+  </footer>
+
+  <script>
+    // Se o APK ainda não foi publicado em downloads/, avisa em vez de levar a um 404.
+    (function () {
+      if (location.protocol === "file:") return;
+      fetch("downloads/curriculo-sob-medida.apk", { method: "HEAD" })
+        .then(function (r) { if (!r.ok) indisponivel(); })
+        .catch(indisponivel);
+
+      function indisponivel() {
+        document.querySelectorAll("[data-apk]").forEach(function (a) {
+          a.setAttribute("aria-disabled", "true");
+          a.removeAttribute("href");
+          a.classList.add("botao--inativo");
+        });
+        document.querySelectorAll("[data-apk-nota]").forEach(function (n) {
+          n.textContent = "O APK estará disponível aqui em breve.";
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

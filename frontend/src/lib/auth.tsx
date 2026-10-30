@@ -23,6 +23,8 @@ type AuthValor = {
   entrar: (email: string, senha: string) => Promise<void>;
   cadastrar: (dados: authApi.DadosCadastro) => Promise<void>;
   sair: () => Promise<void>;
+  /** Substitui os dados do usuário logado (ex.: depois de mudar o consentimento). */
+  atualizarUsuario: (usuario: Usuario) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValor | null>(null);
@@ -74,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sair: async () => {
         if (sessao?.refresh) await authApi.logout(sessao.refresh).catch(() => {});
         await aplicar(null);
+      },
+      atualizarUsuario: async (usuario) => {
+        if (sessao) await aplicar({ ...sessao, usuario });
       },
     }),
     [sessao, carregando, aplicar],

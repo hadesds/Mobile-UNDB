@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-10-30T03:21:59.374Z",
+        "reason": "model triage: cards are inside the phone mockup that depicts the app's own screen (.celular__tela), intentional"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-10-30T03:21:59.389Z",
+        "reason": "model triage: full-bleed <section> backgrounds; content is inset by .container width min(1120px, 100% - 48px), verified in 390px screenshot"
+      }
+    ]
+  }
+}

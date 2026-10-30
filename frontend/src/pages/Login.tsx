@@ -1,17 +1,19 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInputInstance,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Botao, Campo } from "../components/Ui";
-import { colors, radius, spacing } from "../constants/theme";
+import { Surgir } from "../components/Movimento/Surgir";
+import { Botao, Campo, Icone } from "../components/Ui";
+import { colors, elevation, radius, spacing } from "../constants/theme";
 import { useAuth } from "../lib/auth";
 import type { AuthStackParams } from "../lib/navigation";
 
@@ -20,6 +22,7 @@ type Props = NativeStackScreenProps<AuthStackParams, "Login">;
 export default function Login({ navigation }: Props) {
   const { entrar } = useAuth();
   const insets = useSafeAreaInsets();
+  const senhaRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -42,53 +45,70 @@ export default function Login({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.raiz}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingView style={styles.raiz} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         <View style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}>
           <View style={[styles.circulo, styles.circulo1]} />
           <View style={[styles.circulo, styles.circulo2]} />
-          <Text style={styles.nucleo}>Núcleo de Carreiras TEIA</Text>
-          <Text style={styles.titulo}>TEIA — Currículo{"\n"}Sob Medida</Text>
-          <Text style={styles.subtitulo}>
-            Organize seu currículo, entenda o que cada vaga pede e acompanhe seus
-            encaminhamentos.
-          </Text>
+          <View style={[styles.circulo, styles.circulo3]} />
+          <Surgir deslocamento={14}>
+            <Text style={styles.titulo} accessibilityRole="header">
+              TEIA — Currículo{"\n"}Sob Medida
+            </Text>
+            <Text style={styles.subtitulo}>
+              Organize seu currículo, entenda o que cada vaga pede e acompanhe seus encaminhamentos.
+            </Text>
+            <Text style={styles.nucleo}>Núcleo de Carreiras TEIA · UNDB</Text>
+          </Surgir>
         </View>
 
-        <View style={styles.cartao}>
+        <Surgir indice={2} deslocamento={24} style={styles.cartao}>
           <Text style={styles.cartaoTitulo}>Entrar</Text>
           <Campo
             rotulo="E-mail institucional"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => {
+              setEmail(t);
+              if (erro) setErro(null);
+            }}
             placeholder="nome.sobrenome@aluno.undb.edu.br"
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
             textContentType="username"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => senhaRef.current?.focus()}
           />
           <Campo
+            ref={senhaRef}
             rotulo="Senha"
             value={senha}
-            onChangeText={setSenha}
+            onChangeText={(t) => {
+              setSenha(t);
+              if (erro) setErro(null);
+            }}
             secureTextEntry
             autoComplete="password"
             textContentType="password"
+            returnKeyType="go"
             onSubmitEditing={onEntrar}
           />
-          {!!erro && <Text style={styles.erro}>{erro}</Text>}
+          {!!erro && (
+            <View style={styles.erro} accessibilityLiveRegion="polite">
+              <Icone nome="alerta" tamanho={16} cor={colors.danger} />
+              <Text style={styles.erroTexto}>{erro}</Text>
+            </View>
+          )}
 
-          <Botao titulo="Entrar" onPress={onEntrar} carregando={enviando} />
-          <View style={styles.divisor} />
-          <Botao
-            titulo="Primeiro acesso? Criar conta"
-            variante="contorno"
-            onPress={() => navigation.navigate("Cadastro")}
-          />
-        </View>
+          <Botao titulo="Entrar" onPress={onEntrar} carregando={enviando} style={{ marginTop: spacing.xs }} />
+          <View style={styles.divisor}>
+            <View style={styles.traco} />
+            <Text style={styles.divisorTexto}>primeiro acesso?</Text>
+            <View style={styles.traco} />
+          </View>
+          <Botao titulo="Criar minha conta" variante="contorno" onPress={() => navigation.navigate("Cadastro")} />
+        </Surgir>
 
         <Text style={[styles.rodape, { paddingBottom: insets.bottom + spacing.lg }]}>
           Use o mesmo e-mail institucional dos sistemas acadêmicos da UNDB.
@@ -103,47 +123,37 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 80,
+    paddingBottom: 88,
     overflow: "hidden",
   },
-  circulo: {
-    position: "absolute",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    borderRadius: 999,
-  },
-  circulo1: { width: 320, height: 320, right: -140, top: -60 },
-  circulo2: { width: 220, height: 220, right: -90, top: -10 },
-  nucleo: { color: colors.primaryText, fontSize: 14, fontWeight: "700", opacity: 0.95 },
+  circulo: { position: "absolute", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 999 },
+  circulo1: { width: 340, height: 340, right: -150, top: -70 },
+  circulo2: { width: 230, height: 230, right: -95, top: -15 },
+  circulo3: { width: 120, height: 120, right: -40, top: 40, borderColor: "rgba(255,255,255,0.12)" },
+  nucleo: { color: colors.primaryText, fontSize: 13, fontWeight: "700", opacity: 0.85, marginTop: spacing.md },
   titulo: {
     color: colors.primaryText,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 38,
+    lineHeight: 42,
     fontWeight: "800",
-    marginTop: spacing.sm,
+    letterSpacing: -1,
   },
-  subtitulo: {
-    color: colors.primaryText,
-    fontSize: 16,
-    lineHeight: 23,
-    marginTop: spacing.md,
-    opacity: 0.95,
-  },
+  subtitulo: { color: colors.primaryText, fontSize: 16, lineHeight: 23, marginTop: spacing.md, opacity: 0.94, maxWidth: 360 },
   cartao: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.md,
-    marginTop: -56,
+    marginTop: -60,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    gap: spacing.md,
+    ...elevation.high,
   },
-  cartaoTitulo: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: spacing.md },
-  erro: { color: colors.danger, marginBottom: spacing.md, fontSize: 14 },
-  divisor: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md },
+  cartaoTitulo: { fontSize: 22, fontWeight: "800", color: colors.text },
+  erro: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
+  erroTexto: { color: colors.danger, fontSize: 14, flex: 1 },
+  divisor: { flexDirection: "row", alignItems: "center", gap: spacing.smd },
+  traco: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.borderStrong },
+  divisorTexto: { fontSize: 13, color: colors.muted },
   rodape: {
     textAlign: "center",
     color: colors.muted,

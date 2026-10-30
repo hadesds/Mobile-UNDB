@@ -1,18 +1,22 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Carregando } from "../components/Layout/Carregando";
+import { IconeAba } from "../components/Layout/IconeAba";
+import type { NomeIcone } from "../components/Ui";
 import { colors } from "../constants/theme";
 import Cadastro from "../pages/Cadastro";
+import CandidaturaDetalhe from "../pages/CandidaturaDetalhe";
+import Candidaturas from "../pages/Candidaturas";
 import Conta from "../pages/Conta";
-import EmBreve from "../pages/EmBreve";
+import Curriculo from "../pages/Curriculo";
 import Login from "../pages/Login";
-import ResultadoAnalise from "../pages/ResultadoAnalise";
 import VagaDetalhe from "../pages/VagaDetalhe";
 import Vagas from "../pages/Vagas";
 import { useAuth } from "./auth";
+import { CandidaturasProvider } from "./candidaturas";
 
 // ---- Tipos das rotas -------------------------------------------------------
 
@@ -21,23 +25,26 @@ export type AuthStackParams = {
   Cadastro: undefined;
 };
 
-export type VagasStackParams = {
+/** Rotas das pilhas internas (cada aba registra as que usa). */
+export type AppStackParams = {
   VagasLista: undefined;
+  CandidaturasLista: undefined;
+  CurriculoInicio: undefined;
   VagaDetalhe: { id: number };
-  ResultadoAnalise: { id: number };
+  Candidatura: { id: number; recemCriada?: boolean };
 };
 
 export type AlunoTabsParams = {
   VagasTab: undefined;
-  Candidaturas: undefined;
-  Curriculo: undefined;
+  CandidaturasTab: undefined;
+  CurriculoTab: undefined;
   Conta: undefined;
 };
 
 // ---- Navegadores -----------------------------------------------------------
 
 const AuthStack = createNativeStackNavigator<AuthStackParams>();
-const VagasStack = createNativeStackNavigator<VagasStackParams>();
+const Stack = createNativeStackNavigator<AppStackParams>();
 const Tabs = createBottomTabNavigator<AlunoTabsParams>();
 
 const tema = {
@@ -53,62 +60,90 @@ const tema = {
 };
 
 const cabecalho = {
-  headerTitleStyle: { fontWeight: "700" as const },
+  headerTitleStyle: { fontWeight: "700" as const, fontSize: 17 },
   headerTintColor: colors.text,
+  headerStyle: { backgroundColor: colors.background },
   headerShadowVisible: false,
   headerBackButtonDisplayMode: "minimal" as const,
+  contentStyle: { backgroundColor: colors.background },
 };
+
+const detalhes = (
+  <>
+    <Stack.Screen name="VagaDetalhe" component={VagaDetalhe} options={{ title: "Vaga" }} />
+    <Stack.Screen name="Candidatura" component={CandidaturaDetalhe} options={{ title: "Sua candidatura" }} />
+  </>
+);
 
 function VagasNavigator() {
   return (
-    <VagasStack.Navigator screenOptions={cabecalho}>
-      <VagasStack.Screen name="VagasLista" component={Vagas} options={{ title: "Vagas" }} />
-      <VagasStack.Screen
-        name="VagaDetalhe"
-        component={VagaDetalhe}
-        options={{ title: "Detalhes da vaga" }}
-      />
-      <VagasStack.Screen
-        name="ResultadoAnalise"
-        component={ResultadoAnalise}
-        options={{ title: "Resultado da análise" }}
-      />
-    </VagasStack.Navigator>
+    <Stack.Navigator screenOptions={cabecalho}>
+      <Stack.Screen name="VagasLista" component={Vagas} options={{ headerShown: false, title: "Vagas" }} />
+      {detalhes}
+    </Stack.Navigator>
   );
 }
 
-// Ícones em texto para não depender de pacote de ícones nesta etapa.
-const icone = (simbolo: string) =>
-  function Icone({ color }: { color: string }) {
-    return <Text style={{ color, fontSize: 18 }}>{simbolo}</Text>;
+function CandidaturasNavigator() {
+  return (
+    <Stack.Navigator screenOptions={cabecalho}>
+      <Stack.Screen
+        name="CandidaturasLista"
+        component={Candidaturas}
+        options={{ headerShown: false, title: "Candidaturas" }}
+      />
+      {detalhes}
+    </Stack.Navigator>
+  );
+}
+
+function CurriculoNavigator() {
+  return (
+    <Stack.Navigator screenOptions={cabecalho}>
+      <Stack.Screen name="CurriculoInicio" component={Curriculo} options={{ headerShown: false, title: "Currículo" }} />
+    </Stack.Navigator>
+  );
+}
+
+const icone = (nome: NomeIcone) =>
+  function Icone({ color, focused }: { color: string; focused: boolean }) {
+    return <IconeAba nome={nome} focado={focused} cor={color} />;
   };
 
 function AlunoTabs() {
+  const insets = useSafeAreaInsets();
   return (
-    <Tabs.Navigator
-      screenOptions={{
-        ...cabecalho,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
-      }}
-    >
-      <Tabs.Screen
-        name="VagasTab"
-        component={VagasNavigator}
-        options={{ title: "Vagas", headerShown: false, tabBarIcon: icone("▤") }}
-      />
-      <Tabs.Screen
-        name="Candidaturas"
-        component={EmBreve}
-        options={{ tabBarIcon: icone("◷") }}
-      />
-      <Tabs.Screen
-        name="Curriculo"
-        component={EmBreve}
-        options={{ title: "Currículo", tabBarIcon: icone("☰") }}
-      />
-      <Tabs.Screen name="Conta" component={Conta} options={{ tabBarIcon: icone("◉") }} />
-    </Tabs.Navigator>
+    <CandidaturasProvider>
+      <Tabs.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primaryDark,
+          tabBarInactiveTintColor: colors.muted,
+          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+          tabBarStyle: {
+            height: 70 + insets.bottom,
+            paddingTop: 8,
+            paddingBottom: Math.max(insets.bottom, 8),
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+          },
+          animation: "fade",
+        }}
+      >
+        <Tabs.Screen name="VagasTab" component={VagasNavigator} options={{ title: "Vagas", tabBarIcon: icone("vagas") }} />
+        <Tabs.Screen
+          name="CandidaturasTab"
+          component={CandidaturasNavigator}
+          options={{ title: "Candidaturas", tabBarIcon: icone("candidaturas") }}
+        />
+        <Tabs.Screen
+          name="CurriculoTab"
+          component={CurriculoNavigator}
+          options={{ title: "Currículo", tabBarIcon: icone("curriculo") }}
+        />
+        <Tabs.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
+      </Tabs.Navigator>
+    </CandidaturasProvider>
   );
 }
 
@@ -123,7 +158,7 @@ function AuthNavigator() {
 
 export function RootNavigator() {
   const { usuario, carregando } = useAuth();
-  if (carregando) return <Carregando />;
+  if (carregando) return <Carregando simples />;
 
   return (
     <NavigationContainer theme={tema}>

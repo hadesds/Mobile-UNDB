@@ -1,27 +1,42 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "../../constants/theme";
+import { colors, motion, nativo, radius, spacing } from "../../constants/theme";
+import { TERMO_LGPD } from "../../constants/termos";
+import { useReduzirMovimento } from "../../hooks/useReduzirMovimento";
+import { Icone } from "../Ui";
 
 type Props = { aceito: boolean; onAlterar: (v: boolean) => void; erro?: string };
 
 /** Caixa de aceite do termo de consentimento (LGPD), obrigatória no cadastro. */
 export function AceiteLgpd({ aceito, onAlterar, erro }: Props) {
+  const reduzir = useReduzirMovimento();
+  const p = useRef(new Animated.Value(aceito ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(p, {
+      toValue: aceito ? 1 : 0,
+      duration: reduzir ? 0 : motion.padrao,
+      easing: motion.desacelera,
+      useNativeDriver: nativo,
+    }).start();
+  }, [aceito, p, reduzir]);
+
   return (
-    <View style={styles.wrap}>
+    <View style={{ gap: 6 }}>
       <Pressable
-        style={styles.linha}
+        style={[styles.linha, aceito && styles.linhaMarcada, !!erro && styles.linhaErro]}
         onPress={() => onAlterar(!aceito)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: aceito }}
+        accessibilityLabel={TERMO_LGPD}
       >
         <View style={[styles.caixa, aceito && styles.caixaMarcada]}>
-          {aceito && <Text style={styles.check}>✓</Text>}
+          <Animated.View style={{ opacity: p, transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }}>
+            <Icone nome="check" tamanho={16} cor={colors.primaryText} espessura={3} />
+          </Animated.View>
         </View>
-        <Text style={styles.texto}>
-          Autorizo o Núcleo de Carreiras TEIA a tratar os dados do meu currículo para analisar
-          compatibilidade com vagas e realizar encaminhamentos, conforme a LGPD. Posso revogar
-          este consentimento a qualquer momento.
-        </Text>
+        <Text style={styles.texto}>{TERMO_LGPD}</Text>
       </Pressable>
       {!!erro && <Text style={styles.erro}>{erro}</Text>}
     </View>
@@ -29,20 +44,30 @@ export function AceiteLgpd({ aceito, onAlterar, erro }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.md },
-  linha: { flexDirection: "row", gap: spacing.sm + 4, alignItems: "flex-start" },
+  linha: {
+    flexDirection: "row",
+    gap: spacing.smd,
+    alignItems: "flex-start",
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  linhaMarcada: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  linhaErro: { borderColor: colors.danger },
   caixa: {
     width: 24,
     height: 24,
-    borderRadius: 6,
+    borderRadius: 7,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    marginTop: 1,
   },
   caixaMarcada: { backgroundColor: colors.primary, borderColor: colors.primary },
-  check: { color: colors.primaryText, fontWeight: "800", fontSize: 14 },
   texto: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
-  erro: { color: colors.danger, fontSize: 13, marginTop: 4 },
+  erro: { color: colors.danger, fontSize: 13 },
 });

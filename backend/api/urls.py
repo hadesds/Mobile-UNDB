@@ -8,6 +8,7 @@ router.register("cursos", views.CursoViewSet, basename="curso")
 router.register("competencias", views.CompetenciaViewSet, basename="competencia")
 router.register("empresas", views.EmpresaViewSet, basename="empresa")
 router.register("vagas", views.VagaViewSet, basename="vaga")
+router.register("candidaturas", views.CandidaturaViewSet, basename="candidatura")
 
 perfil_router = DefaultRouter()
 perfil_router.register("formacoes", views.FormacaoViewSet, basename="formacao")

@@ -1,6 +1,7 @@
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -9,7 +10,10 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from backend.compatibilidade import analisar
 from backend.models import (
+    Analise,
+    Candidatura,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -35,6 +39,9 @@ from .permissions import (
 )
 from .serializers import (
     CadastroAlunoSerializer,
+    CandidaturaDetalheSerializer,
+    CandidaturaListaSerializer,
+    NovaCandidaturaSerializer,
     CompetenciaDoPerfilSerializer,
     CompetenciaSerializer,
     ConsentimentoSerializer,
@@ -324,3 +331,61 @@ class VagaViewSet(SemDelete, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(gestor=self.request.user.gestor)
+
+# ---------------------------------------------------------------------------
+# Candidaturas do aluno
+# ---------------------------------------------------------------------------
+
+
+class CandidaturaViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """O aluno se candidata, acompanha o status e atualiza a análise.
+
+    Criar a candidatura já gera a primeira análise. O status só muda pela
+    decisão humana do gestor (admin, por enquanto).
+    """
+
+    permission_classes = [IsAlunoComConsentimento]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = (
+            Candidatura.objects.filter(aluno=self.request.user.aluno)
+            .select_related("vaga__empresa", "encaminhamento")
+            .prefetch_related(
+                Prefetch("analises", queryset=Analise.objects.order_by("-criada_em"))
+            )
+            .order_by("-criada_em")
+        )
+        vaga = self.request.query_params.get("vaga")
+        if vaga and vaga.isdigit():
+            qs = qs.filter(vaga_id=vaga)
+        return qs
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CandidaturaListaSerializer
+        return CandidaturaDetalheSerializer
+
+    def _detalhe(self, pk, codigo=status.HTTP_200_OK):
+        candidatura = self.get_queryset().get(pk=pk)
+        return Response(CandidaturaDetalheSerializer(candidatura).data, status=codigo)
+
+    def create(self, request, *args, **kwargs):
+        aluno = request.user.aluno
+        ser = NovaCandidaturaSerializer(data=request.data, context={"aluno": aluno})
+        ser.is_valid(raise_exception=True)
+        candidatura = Candidatura.objects.create(aluno=aluno, vaga=ser.validated_data["vaga"])
+        analisar(candidatura)
+        return self._detalhe(candidatura.pk, status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def reanalisar(self, request, pk=None):
+        """Nova análise com o currículo atual; as anteriores ficam no histórico."""
+        candidatura = self.get_object()
+        analisar(candidatura)
+        return self._detalhe(candidatura.pk)

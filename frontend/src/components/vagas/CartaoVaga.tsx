@@ -1,19 +1,21 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../../constants/theme";
+import { colors, font, spacing } from "../../constants/theme";
 import type { Vaga } from "../../types";
-import { formatarData, ROTULO_MODALIDADE, ROTULO_TIPO } from "../../utils/formatos";
-import { Avatar, Chip } from "../Ui";
+import { ROTULO_MODALIDADE, ROTULO_TIPO, rotuloPrazo } from "../../utils/formatos";
+import { Avatar, Cartao, Chip, Icone } from "../Ui";
 
-export function CartaoVaga({ vaga, onPress }: { vaga: Vaga; onPress: () => void }) {
-  const qtdRequisitos = vaga.requisitos_competencia.length + vaga.requisitos_idioma.length;
+type Props = { vaga: Vaga; onPress: () => void; candidatado?: boolean };
+
+/** Resumo da vaga na lista: só o que ajuda a decidir se vale abrir. */
+export function CartaoVaga({ vaga, onPress, candidatado }: Props) {
+  const prazo = rotuloPrazo(vaga.prazo);
 
   return (
-    <Pressable
+    <Cartao
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${vaga.titulo}, ${vaga.empresa}`}
-      style={({ pressed }) => [styles.cartao, pressed && { opacity: 0.9 }]}
+      rotuloAcessivel={`${vaga.titulo}, ${vaga.empresa}. ${ROTULO_MODALIDADE[vaga.modalidade]}. ${prazo.texto}${candidatado ? ". Você já se candidatou" : ""}`}
+      style={styles.cartao}
     >
       <View style={styles.topo}>
         <Avatar nome={vaga.empresa} tamanho={44} />
@@ -21,44 +23,37 @@ export function CartaoVaga({ vaga, onPress }: { vaga: Vaga; onPress: () => void 
           <Text style={styles.titulo} numberOfLines={2}>
             {vaga.titulo}
           </Text>
-          <Text style={styles.empresa}>{vaga.empresa}</Text>
+          <Text style={styles.empresa} numberOfLines={1}>
+            {vaga.empresa}
+          </Text>
         </View>
+        <Icone nome="direita" tamanho={18} cor={colors.subtle} />
       </View>
 
       <View style={styles.chips}>
-        <Chip texto={ROTULO_TIPO[vaga.tipo]} tom="marca" />
-        <Chip texto={ROTULO_MODALIDADE[vaga.modalidade]} />
+        {candidatado ? (
+          <Chip texto="Candidatura enviada" tom="sucesso" icone="check" />
+        ) : (
+          <Chip texto={ROTULO_TIPO[vaga.tipo]} tom="marca" />
+        )}
+        <Chip texto={ROTULO_MODALIDADE[vaga.modalidade]} icone="local" />
       </View>
 
       <View style={styles.rodape}>
-        <Text style={styles.meta}>Inscrições até {formatarData(vaga.prazo)}</Text>
-        <Text style={styles.meta}>
-          {qtdRequisitos} requisito{qtdRequisitos === 1 ? "" : "s"}
-        </Text>
+        <Icone nome="calendario" tamanho={15} cor={prazo.urgente ? colors.warning : colors.subtle} />
+        <Text style={[styles.meta, prazo.urgente && styles.urgente]}>{prazo.texto}</Text>
       </View>
-    </Pressable>
+    </Cartao>
   );
 }
 
 const styles = StyleSheet.create({
-  cartao: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.sm + 4,
-  },
-  topo: { flexDirection: "row", gap: spacing.sm + 4, alignItems: "center" },
-  titulo: { fontSize: 16, fontWeight: "700", color: colors.text },
-  empresa: { fontSize: 14, color: colors.muted, marginTop: 2 },
+  cartao: { gap: spacing.smd },
+  topo: { flexDirection: "row", gap: spacing.smd, alignItems: "center" },
+  titulo: { ...font.h3 },
+  empresa: { ...font.small, fontSize: 14, marginTop: 2 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  rodape: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.sm + 2,
-  },
-  meta: { fontSize: 13, color: colors.muted },
+  rodape: { flexDirection: "row", alignItems: "center", gap: 6 },
+  meta: { ...font.small },
+  urgente: { color: colors.warning, fontWeight: "700" },
 });

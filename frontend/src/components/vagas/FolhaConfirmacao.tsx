@@ -1,82 +1,65 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../../constants/theme";
-import { Botao } from "../Ui";
+import { colors, font, spacing } from "../../constants/theme";
+import { Botao, Folha, Icone, NomeIcone } from "../Ui";
 
 type Props = {
   visivel: boolean;
   tituloVaga: string;
+  enviando?: boolean;
   onConfirmar: () => void;
   onCancelar: () => void;
 };
 
-/** Folha inferior que explica o que acontece antes de enviar a candidatura. */
-export function FolhaConfirmacao({ visivel, tituloVaga, onConfirmar, onCancelar }: Props) {
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={visivel} transparent animationType="slide" onRequestClose={onCancelar}>
-      <Pressable style={styles.fundo} onPress={onCancelar} accessibilityLabel="Fechar" />
-      <View style={[styles.folha, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <View style={styles.alca} />
-        <Text style={styles.titulo}>Analisar e se candidatar</Text>
-        <Text style={styles.vaga}>{tituloVaga}</Text>
+const PASSOS: { icone: NomeIcone; texto: string }[] = [
+  { icone: "curriculo", texto: "Comparamos os requisitos da vaga com o que está no seu currículo." },
+  { icone: "check", texto: "Você vê o resultado por requisito, com a evidência de cada um." },
+  { icone: "enviar", texto: "Sua candidatura vai para a equipe do TEIA, que decide os encaminhamentos." },
+];
 
-        {[
-          "Comparamos os requisitos da vaga com o que está no seu currículo.",
-          "Você vê o resultado por requisito, com a evidência de cada um.",
-          "Sua candidatura vai para a equipe do TEIA, que decide os encaminhamentos.",
-        ].map((t, i) => (
-          <View key={i} style={styles.item}>
-            <Text style={styles.numero}>{i + 1}</Text>
-            <Text style={styles.texto}>{t}</Text>
+/** Folha inferior que explica o que acontece antes de enviar a candidatura. */
+export function FolhaConfirmacao({ visivel, tituloVaga, enviando, onConfirmar, onCancelar }: Props) {
+  return (
+    <Folha
+      visivel={visivel}
+      onFechar={onCancelar}
+      titulo="Analisar e se candidatar"
+      subtitulo={tituloVaga}
+      rodape={
+        <>
+          <Botao titulo="Confirmar e analisar" icone="enviar" onPress={onConfirmar} carregando={enviando} />
+          <Botao titulo="Agora não" variante="link" onPress={onCancelar} desabilitado={enviando} />
+        </>
+      }
+    >
+      <View style={{ gap: spacing.smd }}>
+        {PASSOS.map((p) => (
+          <View key={p.texto} style={styles.item}>
+            <View style={styles.icone}>
+              <Icone nome={p.icone} tamanho={17} cor={colors.primaryDark} espessura={2} />
+            </View>
+            <Text style={styles.texto}>{p.texto}</Text>
           </View>
         ))}
-
-        <Text style={styles.aviso}>
-          O resultado não é aprovação nem previsão de contratação. Você pode editar o currículo
-          e atualizar a análise depois.
-        </Text>
-
-        <Botao titulo="Confirmar e analisar" onPress={onConfirmar} />
-        <Botao titulo="Agora não" variante="link" onPress={onCancelar} style={{ marginTop: 4 }} />
       </View>
-    </Modal>
+      <Text style={styles.aviso}>
+        O resultado não é aprovação nem previsão de contratação. Você pode editar o currículo e
+        atualizar a análise depois.
+      </Text>
+    </Folha>
   );
 }
 
 const styles = StyleSheet.create({
-  fundo: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
-  folha: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm + 4,
-  },
-  alca: {
-    alignSelf: "center",
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.border,
-    marginBottom: spacing.sm,
-  },
-  titulo: { fontSize: 20, fontWeight: "800", color: colors.text },
-  vaga: { fontSize: 14, color: colors.muted, marginBottom: spacing.sm },
-  item: { flexDirection: "row", gap: spacing.sm + 4, alignItems: "flex-start" },
-  numero: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  item: { flexDirection: "row", gap: spacing.smd, alignItems: "flex-start" },
+  icone: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primarySoft,
-    color: colors.primaryDark,
-    textAlign: "center",
-    lineHeight: 24,
-    fontWeight: "800",
-    fontSize: 13,
-    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  texto: { flex: 1, fontSize: 15, color: colors.text, lineHeight: 21 },
-  aviso: { fontSize: 13, color: colors.muted, lineHeight: 19, marginVertical: spacing.sm },
+  texto: { ...font.body, flex: 1, paddingTop: 5 },
+  aviso: { ...font.small, lineHeight: 19 },
 });

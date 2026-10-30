@@ -25,3 +25,5 @@ export const logout = (refresh: string) =>
   request<void>("/auth/logout/", { method: "POST", body: { refresh } });
 
 export const buscarMe = () => request<Usuario>("/me/");
+export const alterarConsentimento = (aceito: boolean) =>
+  request<Usuario>("/me/consentimento/", { method: "POST", body: { aceito } });

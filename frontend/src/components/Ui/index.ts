@@ -1,5 +1,12 @@
 export { Avatar } from "./Avatar";
+export { AvisoProvider, useAviso } from "./Aviso";
+export { BarraProgresso } from "./BarraProgresso";
 export { Botao } from "./Botao";
 export { Campo } from "./Campo";
 export { Cartao } from "./Cartao";
-export { Chip } from "./Chip";
+export { Chip, TONS, type Tom } from "./Chip";
+export { EsqueletoLista, Bloco, Pulso } from "./Esqueleto";
+export { Folha } from "./Folha";
+export { Icone, type NomeIcone } from "./Icone";
+export { Segmentado } from "./Segmentado";
+export { Vazio } from "./Vazio";

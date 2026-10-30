@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, spacing } from "../../constants/theme";
+import { colors, elevation, spacing } from "../../constants/theme";
 
 type Props = {
   children: ReactNode;
@@ -19,9 +19,15 @@ export function Tela({ children, rodape, atualizando, onAtualizar }: Props) {
     <View style={styles.raiz}>
       <ScrollView
         contentContainerStyle={styles.conteudo}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           onAtualizar ? (
-            <RefreshControl refreshing={!!atualizando} onRefresh={onAtualizar} />
+            <RefreshControl
+              refreshing={!!atualizando}
+              onRefresh={onAtualizar}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
           ) : undefined
         }
       >
@@ -41,9 +47,11 @@ const styles = StyleSheet.create({
   conteudo: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   rodape: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.smd,
+    gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    ...elevation.low,
   },
 });

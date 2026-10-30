@@ -50,6 +50,19 @@ Vaga (gestor): `requisitos_competencia` e `requisitos_idioma` são aninhados; ao
 enviar a lista, ela **substitui** a anterior (campo omitido = mantém). Para
 `status = aberta` é preciso ao menos um requisito e prazo não vencido.
 
+## Candidaturas (aluno com termo LGPD vigente)
+
+| Rota | Método | Notas |
+|---|---|---|
+| `candidaturas/` | GET | candidaturas do próprio aluno, sem paginação. Filtro `?vaga=<id>` |
+| `candidaturas/` | POST | `{vaga}` → 201 com a candidatura e a primeira análise. Vaga precisa estar aberta; uma candidatura por vaga |
+| `candidaturas/{id}/` | GET | detalhe: `status`, `analise` (com `itens`), `historico`, `encaminhada_em` |
+| `candidaturas/{id}/reanalisar/` | POST | nova análise com o currículo atual; as anteriores ficam no `historico` |
+
+Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferente | nao_identificado), detalhe, obrigatorio`.
+`score` = requisitos com evidência ÷ requisitos cadastrados (mesmo peso); `faixa` segue
+`Analise.FAIXA_*` (provisório). O status da candidatura só muda por decisão do gestor.
+
 ## Paginação e erros
 
 Listas paginadas: `{count, next, previous, results}` (`?page=`, `?page_size=` até 100).
