@@ -23,7 +23,7 @@
         <a href="#para-quem">Para quem</a>
         <a href="#instalar">Instalar</a>
       </nav>
-      <a class="botao botao--pequeno" href="downloads/curriculo-sob-medida.apk" download data-apk>Baixar APK</a>
+      <a class="botao botao--pequeno" href="https://github.com/hadesds/Mobile-UNDB/releases/latest/download/curriculo-sob-medida.apk" data-apk>Baixar APK</a>
     </div>
   </header>
 
@@ -39,7 +39,7 @@
             percentual vem com justificativa.
           </p>
           <div class="hero__acoes">
-            <a class="botao" href="downloads/curriculo-sob-medida.apk" download data-apk>
+            <a class="botao" href="https://github.com/hadesds/Mobile-UNDB/releases/latest/download/curriculo-sob-medida.apk" data-apk>
               <svg class="botao__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" /></svg>
               Baixar para Android
             </a>
@@ -167,7 +167,7 @@
         <div class="instalar__cartao">
           <p class="instalar__nome">Currículo Sob Medida</p>
           <p class="instalar__meta">Android · versão 1.0.0</p>
-          <a class="botao botao--claro" href="downloads/curriculo-sob-medida.apk" download data-apk>
+          <a class="botao botao--claro" href="https://github.com/hadesds/Mobile-UNDB/releases/latest/download/curriculo-sob-medida.apk" data-apk>
             <svg class="botao__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" /></svg>
             Baixar APK
           </a>
@@ -184,25 +184,5 @@
     </div>
   </footer>
 
-  <script>
-    // Se o APK ainda não foi publicado em downloads/, avisa em vez de levar a um 404.
-    (function () {
-      if (location.protocol === "file:") return;
-      fetch("downloads/curriculo-sob-medida.apk", { method: "HEAD" })
-        .then(function (r) { if (!r.ok) indisponivel(); })
-        .catch(indisponivel);
-
-      function indisponivel() {
-        document.querySelectorAll("[data-apk]").forEach(function (a) {
-          a.setAttribute("aria-disabled", "true");
-          a.removeAttribute("href");
-          a.classList.add("botao--inativo");
-        });
-        document.querySelectorAll("[data-apk-nota]").forEach(function (n) {
-          n.textContent = "O APK estará disponível aqui em breve.";
-        });
-      }
-    })();
-  </script>
 </body>
 </html>

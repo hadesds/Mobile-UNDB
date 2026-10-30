@@ -13,20 +13,26 @@ python3 -m http.server 8080
 # abrir http://localhost:8080
 ```
 
-## Publicar o APK
+## Publicar o APK (GitHub Releases)
 
-Os botões apontam para `downloads/curriculo-sob-medida.apk`. Enquanto o arquivo não existir,
-a página desativa os botões e mostra "disponível em breve".
+Os botões apontam para o APK do release mais recente:
+`https://github.com/hadesds/Mobile-UNDB/releases/latest/download/curriculo-sob-medida.apk`.
+O APK não vai para o git nem para o deploy do site.
 
-Para gerar o APK com o EAS (Expo):
+1. Gere o APK: `cd frontend && npx eas-cli build -p android --profile preview`
+   (responda **no** para instalar no emulador).
+2. Baixe o `.apk` e crie o release com o arquivo **com esse nome exato**:
 
 ```bash
-cd frontend
-npx eas-cli login
-npx eas-cli build -p android --profile preview   # perfil com "buildType": "apk" no eas.json
+gh release create v0.X.0 curriculo-sob-medida.apk --target 01-backend --title "v0.X.0" --notes "..."
 ```
 
-Baixe o `.apk` gerado, salve como `site/downloads/curriculo-sob-medida.apk` e publique a pasta
-`site/` em qualquer hospedagem estática (GitHub Pages, Netlify, Vercel).
+O site passa a baixar a versão nova sozinho. Atualize o texto "versão 1.0.0" em `index.html`
+quando mudar a versão do app.
 
-Ao lançar uma versão nova, atualize também o texto "versão 1.0.0" em `index.html`.
+## Deploy na Vercel
+
+Pelo painel: **Add New → Project**, importe o repositório, em **Root Directory** escolha `site`,
+**Framework Preset: Other**, sem build command, e clique em **Deploy**.
+
+Pela CLI: `cd site && npx vercel --prod`.

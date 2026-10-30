@@ -147,7 +147,7 @@ MobileUNDB/
 ├── site/                     # site de apresentação + download do APK
 │   ├── index.html
 │   ├── styles.css
-│   └── downloads/            # coloque aqui o curriculo-sob-medida.apk
+│   └── README.md             # APK via GitHub Releases e deploy na Vercel
 ├── Dockerfile.dev
 ├── docker-compose.dev.yml    # serviços: db, backend, site
 ├── .env.example
@@ -281,17 +281,11 @@ Sobe junto com o compose (serviço `site`, nginx) em <http://localhost:8080>. Se
 cd site && python3 -m http.server 8080
 ```
 
-**Publicar o APK:** os botões apontam para `site/downloads/curriculo-sob-medida.apk`.
-Enquanto o arquivo não existir, a página desativa os botões e mostra "disponível em breve".
-Para gerar o APK com o EAS:
+**APK:** os botões baixam o APK do release mais recente no GitHub
+(`releases/latest/download/curriculo-sob-medida.apk`). Para publicar uma versão nova, gere
+o APK com `npx eas-cli build -p android --profile preview` (em `frontend/`) e crie um release
+com `gh release create` anexando o arquivo com esse nome exato.
 
-```bash
-cd frontend
-npx eas-cli login
-npx eas-cli build -p android --profile preview   # perfil com "buildType": "apk" no eas.json
-```
-
-Salve o arquivo gerado como `site/downloads/curriculo-sob-medida.apk`. Para um link
-público, publique a pasta `site/` em hospedagem estática (Netlify, GitHub Pages, Vercel).
-Ao lançar versão nova, atualize o texto "versão 1.0.0" em `site/index.html`.
-Detalhes em [site/README.md](site/README.md).
+**Deploy na Vercel:** importe o repositório com **Root Directory** = `site` e
+**Framework Preset** = Other (sem build). Ao lançar versão nova, atualize o texto
+"versão 1.0.0" em `site/index.html`. Detalhes em [site/README.md](site/README.md).
