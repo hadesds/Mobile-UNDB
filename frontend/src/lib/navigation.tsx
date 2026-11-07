@@ -8,6 +8,7 @@ import { IconeAba } from "../components/Layout/IconeAba";
 import type { NomeIcone } from "../components/Ui";
 import { colors } from "../constants/theme";
 import AdminCadastros from "../pages/admin/Cadastros";
+import AdminEnvios from "../pages/admin/Envios";
 import AdminUsuarios, { type FiltroUsuarios } from "../pages/admin/Usuarios";
 import VisaoGeral from "../pages/admin/VisaoGeral";
 import Cadastro from "../pages/Cadastro";
@@ -18,6 +19,7 @@ import Curriculo from "../pages/Curriculo";
 import ImportarCurriculo from "../pages/ImportarCurriculo";
 import CandidatoGestor from "../pages/gestor/CandidatoDetalhe";
 import EditarVaga from "../pages/gestor/EditarVaga";
+import EnviosGestor from "../pages/gestor/Envios";
 import Painel from "../pages/gestor/Painel";
 import VagaGestor from "../pages/gestor/VagaGestor";
 import VagasGestor from "../pages/gestor/VagasGestor";
@@ -57,13 +59,16 @@ export type GestorStackParams = {
   PainelInicio: undefined;
   VagasGestorLista: { status?: StatusVaga; pedido?: number } | undefined;
   VagaGestor: { id: number };
-  EditarVaga: { id?: number };
+  /** `solicitacao`: revisão de vaga enviada por empresa (mesmo formulário, publica no fim). */
+  EditarVaga: { id?: number; solicitacao?: number };
   Candidato: { id: number };
+  EnviosInicio: undefined;
 };
 
 export type GestorTabsParams = {
   PainelTab: undefined;
   VagasTab: undefined;
+  EnviosTab: undefined;
   Conta: undefined;
 };
 
@@ -71,6 +76,7 @@ export type AdminTabsParams = {
   VisaoGeral: undefined;
   Cadastros: { secao?: "empresas" | "competencias" | "cursos"; filtro?: "atencao"; pedido?: number } | undefined;
   Usuarios: { filtro?: FiltroUsuarios; pedido?: number } | undefined;
+  Envios: undefined;
   Conta: undefined;
 };
 
@@ -216,12 +222,22 @@ function VagasGestorNavigator() {
   );
 }
 
+function EnviosGestorNavigator() {
+  return (
+    <GestorStack.Navigator screenOptions={cabecalho}>
+      <GestorStack.Screen name="EnviosInicio" component={EnviosGestor} options={{ headerShown: false, title: "Envios" }} />
+      {telasGestor}
+    </GestorStack.Navigator>
+  );
+}
+
 function GestorTabs() {
   const opcoes = useOpcoesAbas();
   return (
     <GestorTabsNav.Navigator screenOptions={opcoes}>
       <GestorTabsNav.Screen name="PainelTab" component={PainelNavigator} options={{ title: "Painel", tabBarIcon: icone("painel") }} />
       <GestorTabsNav.Screen name="VagasTab" component={VagasGestorNavigator} options={{ title: "Vagas", tabBarIcon: icone("vagas") }} />
+      <GestorTabsNav.Screen name="EnviosTab" component={EnviosGestorNavigator} options={{ title: "Envios", tabBarIcon: icone("link") }} />
       <GestorTabsNav.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
     </GestorTabsNav.Navigator>
   );
@@ -236,6 +252,7 @@ function AdminTabs() {
       <AdminTabsNav.Screen name="VisaoGeral" component={VisaoGeral} options={{ title: "Visão geral", tabBarIcon: icone("painel") }} />
       <AdminTabsNav.Screen name="Cadastros" component={AdminCadastros} options={{ title: "Cadastros", tabBarIcon: icone("cadastros") }} />
       <AdminTabsNav.Screen name="Usuarios" component={AdminUsuarios} options={{ title: "Usuários", tabBarIcon: icone("usuarios") }} />
+      <AdminTabsNav.Screen name="Envios" component={AdminEnvios} options={{ title: "Envios", tabBarIcon: icone("link") }} />
       <AdminTabsNav.Screen name="Conta" component={Conta} options={{ title: "Conta", tabBarIcon: icone("conta") }} />
     </AdminTabsNav.Navigator>
   );

@@ -29,38 +29,27 @@ class GestorAdminMixin:
 
 @admin.register(LinkEmpresa)
 class LinkEmpresaAdmin(GestorAdminMixin, admin.ModelAdmin):
-    list_display = ["empresa", "gestor", "expira_em", "revogado"]
-    readonly_fields = ["gestor", "criado_em"]
-    fields = ["empresa", "expira_em", "revogado", *readonly_fields]
+    """Somente consulta: links são gerados e revogados pelo app (o token aparece uma única vez)."""
 
-    def get_readonly_fields(self, request, obj=None):
-        @admin.display(description="Link (copie e envie manualmente)")
-        def endereco(instance):
-            if not instance.pk:
-                return "Salve para gerar o link."
-            return request.build_absolute_uri(reverse("solicitacoes:enviar", args=[instance.token]))
-        if not hasattr(request, "_link_empresa_endereco"):
-            request._link_empresa_endereco = endereco
-        return ["gestor", "criado_em", request._link_empresa_endereco, *(["empresa"] if obj else [])]
+    list_display = ["empresa", "token_prefixo", "criado_por", "expira_em", "revogado", "criado_em"]
+    list_filter = ["revogado"]
+    fields = readonly_fields = ["empresa", "token_prefixo", "criado_por", "expira_em", "revogado",
+                                "revogado_em", "revogado_por", "criado_em"]
 
-    def get_fields(self, request, obj=None):
-        return ["empresa", "expira_em", "revogado", *[f for f in self.get_readonly_fields(request, obj) if f != "empresa"]]
+    def has_add_permission(self, request):
+        return False
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "empresa":
-            kwargs["queryset"] = db_field.remote_field.model.objects.filter(ativa=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    def has_change_permission(self, request, obj=None):
+        return False
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.gestor = request.user.gestor
-        super().save_model(request, obj, form, change)
 
+def editavel(obj):
+    return not obj or obj.status == SolicitacaoVaga.Status.PENDENTE
 
 
 class RequisitoInlineMixin:
     def has_add_permission(self, request, obj=None):
-        return (not obj or not obj.vaga_id) and gestor_autorizado(request.user)
+        return editavel(obj) and gestor_autorizado(request.user)
 
     def has_change_permission(self, request, obj=None):
         return self.has_add_permission(request, obj)
@@ -95,7 +84,7 @@ class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return (not obj or not obj.vaga_id) and super().has_change_permission(request, obj)
+        return editavel(obj) and super().has_change_permission(request, obj)
 
     def get_object(self, request, object_id, from_field=None):
         if request.method == "POST":
@@ -107,6 +96,8 @@ class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
     def confirmar_publicacao(self, obj):
         if obj.vaga_id:
             return "Já publicada."
+        if obj.status == SolicitacaoVaga.Status.RECUSADA:
+            return "Recusada."
         return format_html('<a href="{}">Revisar confirmação de publicação</a>',
                            reverse("admin:solicitacoes_publicar", args=[obj.pk]))
 
@@ -123,7 +114,7 @@ class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
             try:
                 publicar(pk, request.user)
             except ValidationError as exc:
-                self.message_user(request, str(exc), messages.ERROR)
+                self.message_user(request, " ".join(exc.messages), messages.ERROR)
             else:
                 self.message_user(request, "Vaga publicada.", messages.SUCCESS)
             return redirect("admin:solicitacoes_solicitacaovaga_change", pk)

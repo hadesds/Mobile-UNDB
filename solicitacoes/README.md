@@ -1,36 +1,55 @@
 # Envios de vagas ao TEIA
 
-Módulo independente. Os únicos pontos de integração são INSTALLED_APPS e a URL
-`/empresas/vagas/`. Não altera os modelos ou migrações do backend.
+Módulo independente. Os pontos de integração são INSTALLED_APPS, a página
+`/empresas/vagas/` e a API em `/api/v1/` (`solicitacoes/api_urls.py`, descrita em
+`docs/api.md`). Não altera os modelos ou migrações do backend.
+
+Formas de operar o mesmo fluxo, com as mesmas regras (`services.py`):
+
+- **App (aba "Envios", gestor e admin):** gera e revoga links, mostra os que aguardam
+  envio, as empresas que já preencheram e os expirados/revogados. O gestor revisa a vaga
+  recebida no mesmo formulário de vaga e publica ou recusa; o admin só consulta.
+- **Empresa:** página HTML `/empresas/vagas/<token>/` **ou** API pública
+  `empresas/formulario/<token>/` (sem conta, só com o token), para uma página externa.
+- **Django Admin:** links somente para consulta (gerar/revogar é pelo app); solicitações
+  podem ser revisadas e publicadas (exige `is_staff` e vínculo de gestor).
 
 ## Instalação
 
-Execute `python manage.py migrate` para aplicar `solicitacoes/0001_initial.py`
+Execute `python manage.py migrate` para aplicar as migrações de `solicitacoes`
 (dependência: `backend/0002_curriculo_e_vagas`). Nenhuma dependência nova.
+A `0003` converte os tokens existentes em hash: links já enviados continuam válidos.
 
-## Acesso e uso
+## Segurança
 
-O usuário precisa estar ativo, ter `is_staff`, perfil `gestor` e um registro
-`backend.Gestor`. A associação ao cadastro de Gestor concede automaticamente acesso ao módulo e as ações necessárias. Não é preciso atribuir permissões individuais ou de grupo do módulo. O acesso ao Admin continua exigindo `is_staff`. Não há acesso de escrita aos modelos atuais de Vaga/Empresa.
-Um administrador sem perfil e vínculo de gestor não pode operar este módulo.
-As empresas são as já cadastradas; o módulo não cria empresas.
+- **Token só na criação.** `secrets.token_urlsafe(32)` (256 bits); o banco guarda o SHA-256
+  e um prefixo de 6 caracteres para identificação. Um vazamento do banco não expõe links
+  utilizáveis, e o token não volta em nenhuma listagem. No app, o link fica só no estado
+  da folha de criação (nada em armazenamento ou navegação) e some ao fechar.
+- **Um envio por link**, validade curta (padrão 7 dias, máx. 90) e revogação com registro
+  de quem e quando revogou. Quem criou o link também fica registrado.
+- **Menor privilégio.** Gestor e admin geram/revogam; só o gestor edita, publica ou recusa.
+  Aluno não acessa nada. Empresa, status, vaga e revisor nunca vêm do formulário público.
+- **Formulário público** sem login/cookie (sem CSRF a explorar), com limite por IP,
+  `Cache-Control: no-store`, `Referrer-Policy: no-referrer` e `noindex`. Expõe só o nome da
+  empresa (sem contatos). Token desconhecido → 404; conhecido e indisponível → 410.
+- **Geração limitada** por usuário (`GERAR_LINK_EMPRESA_THROTTLE`, padrão 60/h).
+- O token vai no caminho da URL: não ative log de acesso com caminho completo em produção
+  (o gunicorn não registra acessos por padrão) e trate o link como uma senha.
 
-1. Em `/admin/`, abra “Envios de vagas — TEIA” → “Links para empresas”.
-2. Adicione um link, escolha uma empresa ativa e a validade (padrão: sete dias).
-3. Salve, reabra e copie o endereço completo exibido. Envie manualmente à empresa.
-4. A empresa preenche o formulário sem conta. Cada link aceita um único envio;
-   para outra vaga, gere outro link. Para invalidá-lo, marque “Revogado”.
-5. Em “Solicitações de vagas”, abra o envio pendente, ajuste os campos, cursos,
+## Revisão pelo Django Admin
+
+O usuário precisa estar ativo, ter `is_staff`, perfil `gestor` e um registro `backend.Gestor`.
+Não é preciso atribuir permissões individuais ou de grupo do módulo.
+
+1. Em “Solicitações de vagas”, abra o envio pendente, ajuste os campos, cursos,
    competências e idiomas e salve. Salvar a revisão ainda não publica.
-6. Clique em “Revisar confirmação de publicação” e confirme na página seguinte.
+2. Clique em “Revisar confirmação de publicação” e confirme na página seguinte.
    O sistema revalida os dados com VagaSerializer, cria a vaga aberta e registra
    o gestor e a data da publicação. Falhas aparecem no Admin e mantêm o envio pendente.
 
-Após publicada, a solicitação fica somente para consulta. Revogar/expirar um link
-impede novos envios, mas não cancela um envio já recebido nem uma vaga publicada.
-O endereço usa o domínio/protocolo da requisição ao Admin: copie-o no ambiente
-que será acessado pela empresa. Trate o link como credencial; qualquer pessoa
-que o receber poderá usar o formulário enquanto estiver válido.
+Após publicada ou recusada, a solicitação fica somente para consulta. Revogar/expirar um
+link impede novos envios, mas não cancela um envio já recebido nem uma vaga publicada.
 
 ## Implementação e verificação
 

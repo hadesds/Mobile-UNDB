@@ -304,6 +304,52 @@ export type PainelGestor = {
   }[];
 };
 
+// ---- Envio de vagas por empresas (links com token) --------------------------
+
+export type SituacaoLink = "ativo" | "utilizado" | "expirado" | "revogado" | "empresa_inativa";
+export type StatusSolicitacao = "pendente" | "publicada" | "recusada";
+
+/** Link sem o token: depois de criado, só o prefixo identifica o link. */
+export type LinkEmpresa = {
+  id: number;
+  empresa: number;
+  empresa_nome: string;
+  token_prefixo: string;
+  situacao: SituacaoLink;
+  solicitacao: { id: number; status: StatusSolicitacao; titulo: string; criada_em: string; vaga: number | null } | null;
+  expira_em: string;
+  criado_por_nome: string;
+  criado_em: string;
+  revogado_em: string | null;
+  revogado_por_nome: string | null;
+};
+
+/** Resposta da criação: a única vez em que o token e o endereço completos aparecem. */
+export type LinkCriado = LinkEmpresa & { token: string; url: string };
+
+export type SolicitacaoVaga = {
+  id: number;
+  link: number;
+  empresa: number;
+  empresa_nome: string;
+  status: StatusSolicitacao;
+  vaga: number | null;
+  revisado_por: number | null;
+  revisado_por_nome: string | null;
+  criada_em: string;
+  publicada_em: string | null;
+  titulo: string;
+  tipo: TipoVaga;
+  modalidade: Modalidade;
+  descricao: string;
+  prazo: string | null;
+  periodo_minimo: number | null;
+  disponibilidade_horario: string;
+  cursos: number[];
+  requisitos_competencia: { competencia: number; competencia_nome: string; obrigatorio: boolean }[];
+  requisitos_idioma: { idioma: string; nivel_minimo: number; obrigatorio: boolean }[];
+};
+
 // ---- Administração ----------------------------------------------------------
 
 export type ConvenioStatus = "sem_convenio" | "ativo" | "a_vencer" | "vencido";

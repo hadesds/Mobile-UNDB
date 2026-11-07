@@ -19,8 +19,8 @@ class FluxoTests(TestCase):
         cls.comp = Competencia.objects.create(nome="Python")
 
     def setUp(self):
-        self.link = LinkEmpresa.objects.create(empresa=self.empresa, gestor=self.gestor)
-        self.url = reverse("solicitacoes:enviar", args=[self.link.token])
+        self.link, self.token = LinkEmpresa.gerar(empresa=self.empresa, criado_por=self.user)
+        self.url = reverse("solicitacoes:enviar", args=[self.token])
 
     def payload(self):
         return {"titulo": "Desenvolvedor", "tipo": "clt", "modalidade": "remoto",
@@ -139,7 +139,7 @@ class FluxoTests(TestCase):
         obj = self.enviar()
         url = reverse("admin:solicitacoes_publicar", args=[obj.pk])
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_add")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_changelist")).status_code, 200)
         self.assertEqual(self.client.post(url).status_code, 302)
         self.assertEqual(Vaga.objects.count(), 1)
         for perfil in ["aluno", "admin"]:
@@ -151,20 +151,29 @@ class FluxoTests(TestCase):
         sem_vinculo = Usuario.objects.create_user(email="gestor-sem-vinculo@example.com", nome="Gestor sem vínculo", perfil="gestor", is_staff=True)
         self.client.force_login(sem_vinculo)
         self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
-        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_add")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_changelist")).status_code, 403)
 
-    def test_geracao_link_admin(self):
+    def test_admin_django_so_consulta_links(self):
         self.client.force_login(self.user)
-        url = reverse("admin:solicitacoes_linkempresa_add")
-        self.assertEqual(self.client.get(url).status_code, 200)
-        response = self.client.post(url, {"empresa": self.empresa.pk,
-            "expira_em_0": "2099-01-01", "expira_em_1": "12:00:00", "_save": "Salvar"})
-        self.assertEqual(response.status_code, 302)
-        link = LinkEmpresa.objects.exclude(pk=self.link.pk).get()
-        self.assertEqual(link.gestor, self.gestor)
-        self.assertNotEqual(link.token, self.link.token)
-        response = self.client.get(reverse("admin:solicitacoes_linkempresa_change", args=[link.pk]))
-        self.assertContains(response, "http://testserver/empresas/vagas/"+link.token)
+        self.assertEqual(self.client.get(reverse("admin:solicitacoes_linkempresa_add")).status_code, 403)
+        change = reverse("admin:solicitacoes_linkempresa_change", args=[self.link.pk])
+        response = self.client.get(change)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.link.token_prefixo)
+        self.assertNotContains(response, self.token)
+        self.assertNotContains(response, self.link.token_hash)
+        self.client.post(change, {"revogado": "on", "expira_em_0": "2099-01-01", "expira_em_1": "12:00:00"})
+        self.link.refresh_from_db()
+        self.assertFalse(self.link.revogado)
+
+    def test_token_guardado_somente_como_hash(self):
+        import hashlib
+        self.assertEqual(self.link.token_hash, hashlib.sha256(self.token.encode()).hexdigest())
+        self.assertEqual(self.link.token_prefixo, self.token[:6])
+        self.assertFalse(hasattr(self.link, "token"))
+        # O hash em si não abre o formulário.
+        url = reverse("solicitacoes:enviar", args=[self.link.token_hash])
+        self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_aluno_so_enxerga_apos_confirmacao(self):
         from rest_framework.test import APIClient

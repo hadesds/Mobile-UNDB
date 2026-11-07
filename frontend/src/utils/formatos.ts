@@ -196,3 +196,29 @@ export function dataParaIso(texto: string): string | null | undefined {
   if (data.getDate() !== Number(d) || data.getMonth() !== Number(mes) - 1) return undefined;
   return `${a}-${mes}-${d}`;
 }
+
+// ---- Envios de empresas ----------------------------------------------------
+
+export const ROTULO_SITUACAO_LINK: Record<string, string> = {
+  ativo: "Aguardando envio",
+  utilizado: "Preenchido",
+  expirado: "Expirado",
+  revogado: "Revogado",
+  empresa_inativa: "Empresa inativa",
+};
+
+export const ROTULO_STATUS_SOLICITACAO: Record<string, string> = {
+  pendente: "Aguardando revisão",
+  publicada: "Publicada",
+  recusada: "Recusada",
+};
+
+/** "expira em 3 dias", "expira em 5 h", "expirou em 01/11/2026 · 10:00". */
+export function rotuloValidade(iso: string): string {
+  const horas = (new Date(iso).getTime() - Date.now()) / 3_600_000;
+  if (horas <= 0) return `expirou em ${formatarDataHora(iso)}`;
+  if (horas < 1) return "expira em menos de 1 hora";
+  if (horas < 24) return `expira em ${Math.floor(horas)} h`;
+  const dias = Math.floor(horas / 24);
+  return `expira em ${dias} dia${dias === 1 ? "" : "s"}`;
+}

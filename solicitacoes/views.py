@@ -1,21 +1,22 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import render, redirect
-from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from .forms import SolicitacaoForm, CompetenciasFormSet, IdiomasFormSet
 from .models import LinkEmpresa, SolicitacaoVaga
-from .services import validar
+from .services import links_disponiveis, validar
 
 
 @never_cache
 @require_http_methods(["GET", "POST"])
 def enviar(request, token):
     with transaction.atomic():
-        links = LinkEmpresa.objects.select_for_update() if request.method == "POST" else LinkEmpresa.objects.all()
-        link = links.filter(token=token, revogado=False, expira_em__gt=timezone.now(), empresa__ativa=True).first()
-        if not link or SolicitacaoVaga.objects.filter(link=link).exists():
+        links = links_disponiveis()
+        if request.method == "POST":
+            links = links.select_for_update(of=("self",))
+        link = LinkEmpresa.com_token(token, links.select_related("empresa")).first()
+        if not link:
             response = render(request, "solicitacoes/indisponivel.html", status=404)
         else:
             solicitacao = SolicitacaoVaga(link=link)
@@ -32,7 +33,7 @@ def enviar(request, token):
                             itens(idiomas, ["idioma", "nivel_minimo", "obrigatorio"]),
                             form.cleaned_data["cursos"].values_list("pk", flat=True))
                 except ValidationError as exc:
-                    form.add_error(None, exc)
+                    form.add_error(None, exc.messages)
                 else:
                     form.save()
                     comps.save()

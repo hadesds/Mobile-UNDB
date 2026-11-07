@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -140,7 +141,13 @@ REST_FRAMEWORK = {
     # Acesso restrito por padrão (LGPD); endpoints públicos liberam explicitamente.
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "backend.api.pagination.PaginacaoPadrao",
-    "DEFAULT_THROTTLE_RATES": {"auth": "20/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "20/min",
+        # Formulário público das empresas (acesso só com o token do link).
+        "formulario_empresa": os.getenv("FORMULARIO_EMPRESA_THROTTLE", "30/min"),
+        # Geração de links por usuário da equipe.
+        "gerar_link_empresa": os.getenv("GERAR_LINK_EMPRESA_THROTTLE", "60/hour"),
+    },
 }
 
 
@@ -159,6 +166,10 @@ ALUNO_EMAIL_DOMINIOS = [
     for d in os.getenv("ALUNO_EMAIL_DOMINIOS", "aluno.undb.edu.br").split(",")
     if d.strip()
 ]
+
+# Endereço enviado às empresas. Vazio = página do próprio Django (/empresas/vagas/<token>/).
+# Para uma página externa que consome a API, use {token}: https://teia.app/empresa?token={token}
+SOLICITACOES_FORMULARIO_URL = os.getenv("SOLICITACOES_FORMULARIO_URL", "")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -200,6 +211,9 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Nos testes não há collectstatic: o storage com manifest quebraria templates com {% static %}.
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    STORAGES["staticfiles"] = {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}
 
 # Arquivos enviados (currículos). Não são servidos publicamente: só pela API, com login.
 MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))

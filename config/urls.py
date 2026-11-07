@@ -20,5 +20,7 @@ from django.urls import include, path
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("empresas/vagas/", include("solicitacoes.urls")),
+    # Antes do backend: as rotas gestor/links-empresa e gestor/solicitacoes vêm do módulo de envios.
+    path("api/v1/", include("solicitacoes.api_urls")),
     path("api/v1/", include("backend.api.urls")),
 ]

@@ -92,6 +92,56 @@ Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferen
 | `gestor/candidaturas/{id}/` | GET | candidato completo: vaga, análise, histórico e currículo (`curriculo = null` se o aluno revogou o termo LGPD) |
 | `gestor/candidaturas/{id}/decidir/` | POST | `{status, observacao?}`. `encaminhada`/`em_processo` criam o encaminhamento; `analisada` desfaz e volta para a fila |
 
+## Vagas enviadas por empresas (módulo `solicitacoes`)
+
+A empresa não tem conta: a equipe do TEIA gera um **link com token** (um envio por link,
+validade padrão de 7 dias, mín. 30 min, máx. 90 dias) e envia à empresa. O envio fica
+`pendente` até o gestor revisar e publicar; só então vira uma `Vaga` aberta.
+
+**O token aparece uma única vez**, na resposta da criação (`token` e `url`). O banco guarda
+só o SHA-256 e os 6 primeiros caracteres (`token_prefixo`) para identificar o link na lista.
+Perdeu o link? Revogue e gere outro.
+
+### Equipe (JWT)
+
+Links: **gestor ou admin**. Vagas recebidas: gestor revisa, publica e recusa; admin só consulta.
+
+| Rota | Método | Quem | Notas |
+|---|---|---|---|
+| `gestor/links-empresa/` | GET | gestor, admin | filtros `empresa`, `situacao` (`ativo`, `utilizado`, `expirado`, `revogado`, `encerrado` = expirado ou revogado sem envio). Sem token |
+| `gestor/links-empresa/` | POST | gestor, admin | `{empresa, expira_em?}` → 201 com `token` e `url` (só aqui). Empresa ativa. Limite `GERAR_LINK_EMPRESA_THROTTLE` (padrão 60/h por usuário) |
+| `gestor/links-empresa/{id}/` | GET | gestor, admin | `criado_por_nome`, `revogado_em`, `revogado_por_nome` e `solicitacao: {id, status, titulo, criada_em, vaga}` quando preenchido |
+| `gestor/links-empresa/{id}/revogar/` | POST | gestor, admin | invalida o link e registra quem e quando (idempotente). Não cancela envio já recebido. Sem PATCH/DELETE |
+| `gestor/solicitacoes/` | GET | gestor, admin | filtros `status` (`pendente`, `publicada`, `recusada`), `empresa`, `q` |
+| `gestor/solicitacoes/{id}/` | GET | gestor, admin | |
+| `gestor/solicitacoes/{id}/` | PATCH | gestor | revisão: mesmos campos da vaga. Listas enviadas substituem, omitidas mantêm. Só `pendente` (409 caso contrário) |
+| `gestor/solicitacoes/{id}/publicar/` | POST | gestor | revalida com as regras de vaga aberta (≥1 requisito, prazo válido, empresa ativa) e cria a vaga. Idempotente. 400 com os erros |
+| `gestor/solicitacoes/{id}/recusar/` | POST | gestor | marca como `recusada` (não pode ser publicada nem editada depois) |
+
+`url` usa `SOLICITACOES_FORMULARIO_URL` se definida (ex.: `https://teia.app/empresa?token={token}`,
+para uma página externa que consome a API abaixo); senão aponta para a página HTML do
+próprio Django (`/empresas/vagas/<token>/`).
+
+### Empresa (público, somente com o token)
+
+Sem login, sem cookie e sem CSRF; limite de `FORMULARIO_EMPRESA_THROTTLE` (padrão 30/min por IP).
+Token inexistente → 404. Token conhecido, mas `revogado`/`utilizado`/`expirado`/`empresa_inativa`
+→ **410** `{detail, situacao}`.
+
+| Rota | Método | Notas |
+|---|---|---|
+| `empresas/formulario/{token}/` | GET | `{empresa: {nome}, expira_em, limites, opcoes: {vaga_tipos, vaga_modalidades, idiomas, niveis_idioma, cursos}}` |
+| `empresas/formulario/{token}/` | POST | `{titulo, tipo, modalidade, descricao?, prazo?, periodo_minimo?, disponibilidade_horario?, cursos?, requisitos_competencia?: [{competencia, obrigatorio}], requisitos_idioma?: [{idioma, nivel_minimo, obrigatorio}]}` → 201. Até 20 competências e 10 idiomas. `empresa`, `status` etc. são ignorados |
+| `empresas/formulario/{token}/competencias/?q=` | GET | busca no vocabulário (nome ou sinônimo), até 30 itens |
+
+Página externa em outro domínio: inclua a origem em `CORS_ALLOWED_ORIGINS`.
+
+```bash
+curl -s -X POST localhost:8000/api/v1/empresas/formulario/$TOKEN/ -H 'Content-Type: application/json' \
+  -d '{"titulo":"Estágio Dev","tipo":"estagio_nao_obrigatorio","modalidade":"remoto",
+       "requisitos_competencia":[{"competencia":1,"obrigatorio":true}]}'
+```
+
 ## Administração (perfil admin ou superusuário)
 
 | Rota | Método | Notas |

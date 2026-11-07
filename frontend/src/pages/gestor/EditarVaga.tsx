@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { listarCursos } from "../../api/cursos";
+import { buscarSolicitacao, publicarSolicitacao, recusarSolicitacao, revisarSolicitacao } from "../../api/envios";
 import {
   buscarCompetenciasVocabulario,
   buscarVagaGestor,
@@ -18,7 +19,7 @@ import { Botao, Campo, Cartao, Chip, Icone, Segmentado, useAviso } from "../../c
 import { colors, font, radius, spacing } from "../../constants/theme";
 import { useRecurso } from "../../hooks/useRecurso";
 import type { GestorStackParams } from "../../lib/navigation";
-import type { Competencia, Curso, Empresa, Modalidade, StatusVaga, TipoVaga } from "../../types";
+import type { Competencia, Curso, Empresa, Modalidade, SolicitacaoVaga, StatusVaga, TipoVaga, VagaGestor } from "../../types";
 import {
   dataParaIso,
   formatarData,
@@ -27,6 +28,7 @@ import {
   ROTULO_MODALIDADE,
   ROTULO_NIVEL_IDIOMA,
   ROTULO_TIPO,
+  tempoRelativo,
 } from "../../utils/formatos";
 
 type Props = NativeStackScreenProps<GestorStackParams, "EditarVaga">;
@@ -66,17 +68,37 @@ const NOVO: Form = {
 
 export default function EditarVaga({ route, navigation }: Props) {
   const id = route.params?.id;
+  // Revisão de vaga enviada por empresa: mesmo formulário, salva na solicitação e publica no fim.
+  const solicitacaoId = route.params?.solicitacao;
+  const revisao = !!solicitacaoId;
   const avisar = useAviso();
-  const [form, setForm] = useState<Form | null>(id ? null : NOVO);
+  const [form, setForm] = useState<Form | null>(id || revisao ? null : NOVO);
   const [erros, setErros] = useState<Erros>({});
-  const [salvando, setSalvando] = useState<StatusVaga | null>(null);
-  const empresas = useRecurso(listarEmpresasAtivas, []);
+  const [salvando, setSalvando] = useState<StatusVaga | "recusar" | null>(null);
+  const [confirmarRecusa, setConfirmarRecusa] = useState(false);
+  const empresas = useRecurso(() => (revisao ? Promise.resolve(null) : listarEmpresasAtivas()), [revisao]);
   const cursos = useRecurso(listarCursos, []);
-  const existente = useRecurso(() => (id ? buscarVagaGestor(id) : Promise.resolve(null)), [id]);
+  const existente = useRecurso<VagaGestor | SolicitacaoVaga | null>(
+    () => (solicitacaoId ? buscarSolicitacao(solicitacaoId) : id ? buscarVagaGestor(id) : Promise.resolve(null)),
+    [id, solicitacaoId],
+  );
+  const solicitacao = revisao ? (existente.dados as SolicitacaoVaga | null) : null;
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: id ? "Editar vaga" : "Nova vaga" });
-  }, [navigation, id]);
+    navigation.setOptions({ title: revisao ? "Revisar vaga recebida" : id ? "Editar vaga" : "Nova vaga" });
+  }, [navigation, id, revisao]);
+
+  // Já revisada por outra pessoa (ou em outra aba): não edita de novo.
+  useEffect(() => {
+    if (!solicitacao || solicitacao.status === "pendente") return;
+    if (solicitacao.status === "publicada" && solicitacao.vaga) {
+      avisar("Esta vaga já foi publicada");
+      navigation.replace("VagaGestor", { id: solicitacao.vaga });
+    } else {
+      avisar("Este envio já foi recusado", "erro");
+      navigation.goBack();
+    }
+  }, [solicitacao, navigation, avisar]);
 
   useEffect(() => {
     const v = existente.dados;
@@ -93,7 +115,7 @@ export default function EditarVaga({ route, navigation }: Props) {
       disponibilidade_horario: v.disponibilidade_horario,
       competencias: v.requisitos_competencia.map(({ competencia, competencia_nome, obrigatorio }) => ({ competencia, competencia_nome, obrigatorio })),
       idiomas: v.requisitos_idioma.map(({ idioma, nivel_minimo, obrigatorio }) => ({ idioma, nivel_minimo, obrigatorio })),
-      status: v.status,
+      status: "candidaturas" in v ? v.status : "rascunho",
     });
   }, [existente.dados]);
 
@@ -116,7 +138,7 @@ export default function EditarVaga({ route, navigation }: Props) {
     const f = form!;
     const e: Erros = {};
     if (!f.titulo.trim()) e.titulo = "Informe o título da vaga.";
-    if (!f.empresa) e.empresa = "Escolha a empresa.";
+    if (!f.empresa && !revisao) e.empresa = "Escolha a empresa.";
     const prazo = dataParaIso(f.prazo);
     if (prazo === undefined) e.prazo = "Use o formato DD/MM/AAAA.";
     const periodo = f.periodo_minimo ? Number(f.periodo_minimo) : null;
@@ -143,6 +165,10 @@ export default function EditarVaga({ route, navigation }: Props) {
       status,
     };
     setSalvando(status);
+    if (revisao) {
+      await salvarRevisao(dados, status === "aberta");
+      return;
+    }
     try {
       const v = await salvarVaga(dados, id);
       const msg =
@@ -156,18 +182,68 @@ export default function EditarVaga({ route, navigation }: Props) {
       avisar(msg);
       navigation.replace("VagaGestor", { id: v.id });
     } catch (err) {
-      const doServidor = errosDaApi(err);
-      if (doServidor.requisitos_competencia || doServidor.requisitos_idioma)
-        doServidor.requisitos = doServidor.requisitos_competencia ?? doServidor.requisitos_idioma;
-      setErros(doServidor);
-      avisar(doServidor.geral ?? doServidor.status ?? doServidor.prazo ?? "Revise os campos destacados", "erro");
+      mostrarErros(err);
+    } finally {
+      setSalvando(null);
+    }
+  }
+
+  function mostrarErros(err: unknown) {
+    const doServidor = errosDaApi(err);
+    if (doServidor.requisitos_competencia || doServidor.requisitos_idioma)
+      doServidor.requisitos = doServidor.requisitos_competencia ?? doServidor.requisitos_idioma;
+    setErros(doServidor);
+    avisar(doServidor.geral ?? doServidor.status ?? doServidor.prazo ?? "Revise os campos destacados", "erro");
+  }
+
+  /** Salva os ajustes na solicitação; ao publicar, o servidor revalida e cria a vaga aberta. */
+  async function salvarRevisao(dados: DadosVaga, publicar: boolean) {
+    const { empresa: _e, status: _s, ...campos } = dados;
+    try {
+      await revisarSolicitacao(solicitacaoId!, {
+        ...campos,
+        requisitos_competencia: form!.competencias.map(({ competencia, obrigatorio }) => ({ competencia, obrigatorio })),
+        requisitos_idioma: form!.idiomas,
+      });
+      if (!publicar) {
+        avisar("Revisão salva. A vaga ainda não aparece para os alunos.");
+        navigation.goBack();
+        return;
+      }
+      const s = await publicarSolicitacao(solicitacaoId!);
+      avisar("Vaga publicada para os alunos");
+      navigation.replace("VagaGestor", { id: s.vaga! });
+    } catch (err) {
+      mostrarErros(err);
+    } finally {
+      setSalvando(null);
+    }
+  }
+
+  async function recusar() {
+    if (!confirmarRecusa) {
+      setConfirmarRecusa(true);
+      return;
+    }
+    setSalvando("recusar");
+    try {
+      await recusarSolicitacao(solicitacaoId!);
+      avisar("Envio recusado. Ele não será publicado.");
+      navigation.goBack();
+    } catch (err) {
+      mostrarErros(err);
     } finally {
       setSalvando(null);
     }
   }
 
   const publicada = form.status === "aberta";
-  const rodape =
+  const rodape = revisao ? (
+    <View style={styles.acoes}>
+      <Botao titulo="Salvar revisão" variante="contorno" style={{ flex: 1 }} carregando={salvando === "rascunho"} desabilitado={!!salvando} onPress={() => salvar("rascunho")} />
+      <Botao titulo="Publicar" icone="enviar" style={{ flex: 1 }} carregando={salvando === "aberta"} desabilitado={!!salvando} onPress={() => salvar("aberta")} />
+    </View>
+  ) :
     form.status === "encerrada" ? (
       <View style={styles.acoes}>
         <Botao titulo="Salvar" variante="contorno" style={{ flex: 1 }} carregando={salvando === "encerrada"} desabilitado={!!salvando} onPress={() => salvar("encerrada")} />
@@ -184,6 +260,16 @@ export default function EditarVaga({ route, navigation }: Props) {
 
   return (
     <Tela rodape={rodape}>
+      {revisao && solicitacao && (
+        <View style={styles.avisoRevisao}>
+          <Icone nome="empresa" tamanho={18} cor={colors.warningText} />
+          <Text style={styles.avisoRevisaoTexto}>
+            Enviada por {solicitacao.empresa_nome} {tempoRelativo(solicitacao.criada_em)}. Confira os dados: nada aparece
+            para os alunos até você publicar.
+          </Text>
+        </View>
+      )}
+
       {publicada && (
         <View style={styles.aviso}>
           <Icone nome="olho" tamanho={18} cor={colors.successText} />
@@ -193,14 +279,22 @@ export default function EditarVaga({ route, navigation }: Props) {
 
       <Secao titulo="A vaga">
         <Campo rotulo="Título" value={form.titulo} onChangeText={(t) => muda("titulo", t)} erro={erros.titulo} placeholder="Ex.: Estágio em Desenvolvimento Web" />
-        <Seletor
-          rotulo="Empresa"
-          opcoes={opcoesEmpresa}
-          valor={form.empresa}
-          onAlterar={(v) => muda("empresa", v)}
-          placeholder={empresas.carregando ? "Carregando empresas…" : "Escolher empresa"}
-          erro={erros.empresa}
-        />
+        {revisao ? (
+          <View style={{ gap: 2 }}>
+            <Rotulo texto="Empresa" />
+            <Text style={styles.empresaFixa}>{solicitacao?.empresa_nome}</Text>
+            <Text style={styles.secaoTexto}>Definida pelo link enviado; não pode ser trocada.</Text>
+          </View>
+        ) : (
+          <Seletor
+            rotulo="Empresa"
+            opcoes={opcoesEmpresa}
+            valor={form.empresa}
+            onAlterar={(v) => muda("empresa", v)}
+            placeholder={empresas.carregando ? "Carregando empresas…" : "Escolher empresa"}
+            erro={erros.empresa}
+          />
+        )}
         <Rotulo texto="Tipo" />
         <View style={styles.chips}>
           {(Object.keys(ROTULO_TIPO) as TipoVaga[]).map((t) => (
@@ -325,6 +419,25 @@ export default function EditarVaga({ route, navigation }: Props) {
           </View>
         </View>
       </Secao>
+
+      {revisao && (
+        <View style={{ gap: spacing.sm }}>
+          {confirmarRecusa && (
+            <Text style={styles.secaoTexto} accessibilityLiveRegion="assertive">
+              O envio será recusado e não poderá ser publicado depois. Para outra tentativa, gere um novo link para a empresa.
+            </Text>
+          )}
+          <Botao
+            titulo={confirmarRecusa ? "Confirmar recusa" : "Recusar envio"}
+            icone="bloquear"
+            variante="perigo"
+            compacto
+            carregando={salvando === "recusar"}
+            desabilitado={!!salvando}
+            onPress={recusar}
+          />
+        </View>
+      )}
 
       {publicada && (
         <Botao
@@ -463,6 +576,9 @@ const styles = StyleSheet.create({
   acoes: { flexDirection: "row", gap: spacing.smd },
   aviso: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.successSoft, borderRadius: radius.md, padding: spacing.smd },
   avisoTexto: { flex: 1, ...font.small, color: colors.successText, fontWeight: "600" },
+  avisoRevisao: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.warningSoft, borderRadius: radius.md, padding: spacing.smd },
+  avisoRevisaoTexto: { flex: 1, ...font.small, color: colors.warningText, fontWeight: "600" },
+  empresaFixa: { ...font.body, fontWeight: "700" },
   secao: { gap: spacing.smd, paddingTop: spacing.sm },
   secaoTitulo: { ...font.h2 },
   secaoTexto: { ...font.small },
