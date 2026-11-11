@@ -363,7 +363,7 @@ Estrutura de `frontend/src`:
 | Pasta | Conteúdo |
 | --- | --- |
 | `api/` | chamadas HTTP por domínio (auth, vagas, currículo, candidaturas, cursos, gestor, admin, envios) |
-| `pages/` | telas do aluno (Login, Cadastro, Vagas, VagaDetalhe, Currículo, ImportarCurriculo, Candidaturas, CandidaturaDetalhe, Conta) |
+| `pages/` | telas do aluno (Login, Cadastro, Inicio (vagas + resumo das candidaturas), VagaDetalhe, Currículo, ImportarCurriculo, Candidaturas, CandidaturaDetalhe, Conta) |
 | `pages/gestor/` | Painel, VagasGestor, VagaGestor (ranking), EditarVaga, CandidatoDetalhe, Envios |
 | `pages/admin/` | VisaoGeral, Cadastros, Usuarios, Envios |
 | `components/` | `Ui/` (botões, campos, chips…), `Layout/`, `Movimento/` (animações) e componentes por domínio |
