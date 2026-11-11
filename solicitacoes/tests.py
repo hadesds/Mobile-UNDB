@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from backend.models import Usuario, Gestor, Faculdade, NucleoCarreiras, Empresa, Competencia, Vaga
-from .models import LinkEmpresa, SolicitacaoVaga, CompetenciaSolicitada
+from .models import LinkEmpresa, SolicitacaoVaga
 from .services import publicar
 
 

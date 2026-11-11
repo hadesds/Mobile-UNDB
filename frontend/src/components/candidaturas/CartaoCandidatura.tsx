@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, font, spacing } from "../../constants/theme";
+import { font, spacing } from "../../constants/theme";
 import type { CandidaturaResumo } from "../../types";
 import { ROTULO_STATUS, TOM_STATUS } from "../../utils/compatibilidade";
 import { tempoRelativo } from "../../utils/formatos";

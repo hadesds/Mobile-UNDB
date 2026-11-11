@@ -78,6 +78,8 @@ export type AnaliseResumo = { id: number; score: number; faixa: Faixa; criada_em
 
 export type Analise = AnaliseResumo & {
   itens: ItemAnalise[];
+  /** Uma frase explicando a nota: "3 de 4 requisitos têm evidência... faixa alta." */
+  justificativa: string;
   feedback_texto: string;
   versao_motor: string;
 };
@@ -99,6 +101,46 @@ export type Candidatura = Omit<CandidaturaResumo, "analise"> & {
   analise: Analise | null;
   historico: AnaliseResumo[];
   encaminhada_em: string | null;
+  respostas: RespostaCandidatura[];
+};
+
+// ---- Formulário de candidatura (modelo de currículo por vaga, T2) ---------
+// Formato combinado com o backend: ver docs/api.md, "Formulário de candidatura".
+
+/** perfil = veio preenchido do perfil (editável); vaga = pergunta da vaga, vem em branco. */
+export type OrigemCampo = "perfil" | "vaga";
+/** Só muda o jeito de desenhar; o valor é sempre string. sim_nao usa "sim" | "nao". */
+export type FormatoCampo = "texto" | "texto_longo" | "numero" | "sim_nao" | "url";
+
+export type CampoFormulario = {
+  chave: string;
+  rotulo: string;
+  ajuda: string;
+  origem: OrigemCampo;
+  formato: FormatoCampo;
+  obrigatorio: boolean;
+  valor: string;
+  autopreenchido: boolean;
+};
+
+export type FormularioCandidatura = {
+  vaga: number;
+  instrucoes: string;
+  /** Preenchido se o aluno já se candidatou: os valores são os que ele enviou. */
+  candidatura: number | null;
+  campos: CampoFormulario[];
+};
+
+/** Enviado no POST /candidaturas/: { chave: valor }. */
+export type RespostasFormulario = Record<string, string>;
+
+export type RespostaCandidatura = {
+  chave: string;
+  rotulo: string;
+  origem: OrigemCampo;
+  valor: string;
+  /** Campo de perfil cujo valor o aluno mudou antes de enviar. */
+  editado: boolean;
 };
 
 // ---- Currículo (perfil de competências) -----------------------------------

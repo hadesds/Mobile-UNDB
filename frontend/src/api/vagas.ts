@@ -1,5 +1,5 @@
 import { request } from "../lib/api";
-import type { Modalidade, Paginado, TipoVaga, Vaga } from "../types";
+import type { FormularioCandidatura, Modalidade, Paginado, TipoVaga, Vaga } from "../types";
 
 export type FiltrosVaga = { q?: string; tipo?: TipoVaga; modalidade?: Modalidade };
 
@@ -11,3 +11,7 @@ export function listarVagas(filtros: FiltrosVaga = {}) {
 }
 
 export const buscarVaga = (id: number) => request<Vaga>(`/vagas/${id}/`);
+
+/** Formulário da vaga com os dados do perfil já preenchidos (só aluno com termo LGPD). */
+export const buscarFormulario = (id: number) =>
+  request<FormularioCandidatura>(`/vagas/${id}/formulario/`);

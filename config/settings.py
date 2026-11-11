@@ -218,6 +218,31 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
 # Arquivos enviados (currículos). Não são servidos publicamente: só pela API, com login.
 MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
 
+# Produção: arquivos no Supabase Storage (API compatível com S3, via django-storages).
+# O disco do Render é apagado a cada deploy, por isso o FileSystemStorage só serve no dev.
+# Configuração no Supabase: Storage > crie um bucket PRIVADO (ex.: "arquivos") e, em
+# Storage > Settings > S3 Connection, gere a chave de acesso. Endpoint:
+# https://<project-ref>.supabase.co/storage/v1/s3
+# O código não muda: quem usa FileField (currículo hoje; certificados na T1) continua
+# chamando .open()/.delete(). Não use .path, que não existe em storage remoto.
+if os.getenv("SUPABASE_STORAGE_BUCKET"):
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ["SUPABASE_STORAGE_BUCKET"],
+            "endpoint_url": os.environ["SUPABASE_S3_ENDPOINT"],
+            "region_name": os.getenv("SUPABASE_S3_REGION", "us-east-1"),
+            "access_key": os.environ["SUPABASE_S3_ACCESS_KEY_ID"],
+            "secret_key": os.environ["SUPABASE_S3_SECRET_ACCESS_KEY"],
+            "default_acl": None,  # bucket privado: nada de URL pública
+            "file_overwrite": False,
+            "querystring_auth": True,  # se algum dia usar .url, ela sai assinada e expira
+            "querystring_expire": 300,
+            "addressing_style": "path",  # o Supabase exige path-style
+            "signature_version": "s3v4",
+        },
+    }
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

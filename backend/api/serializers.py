@@ -25,6 +25,7 @@ from backend.models import (
     PerfilCompetencias,
     RequisitoCompetencia,
     RequisitoIdioma,
+    RespostaCandidatura,
     SinonimoCompetencia,
     Usuario,
     Vaga,
@@ -535,12 +536,24 @@ class VagaResumoSerializer(serializers.ModelSerializer):
 
 
 class AnaliseSerializer(serializers.ModelSerializer):
+    """Resultado completo: nota (`score` + `faixa`), `justificativa` e `feedback_texto`."""
+
     faixa = serializers.CharField(read_only=True)
+    justificativa = serializers.CharField(read_only=True)
     itens = serializers.SerializerMethodField()
 
     class Meta:
         model = Analise
-        fields = ["id", "score", "faixa", "itens", "feedback_texto", "versao_motor", "criada_em"]
+        fields = [
+            "id",
+            "score",
+            "faixa",
+            "justificativa",
+            "itens",
+            "feedback_texto",
+            "versao_motor",
+            "criada_em",
+        ]
         read_only_fields = fields
 
     def get_itens(self, analise):
@@ -576,12 +589,26 @@ class CandidaturaListaSerializer(serializers.ModelSerializer):
         return AnaliseResumoSerializer(ultima).data if ultima else None
 
 
+class RespostaCandidaturaSerializer(serializers.ModelSerializer):
+    """Uma resposta do formulário, como o aluno enviou (cópia de rótulo e origem)."""
+
+    class Meta:
+        model = RespostaCandidatura
+        fields = ["chave", "rotulo", "origem", "valor", "editado"]
+        read_only_fields = fields
+
+
 class CandidaturaDetalheSerializer(CandidaturaListaSerializer):
     historico = serializers.SerializerMethodField()
     encaminhada_em = serializers.SerializerMethodField()
+    respostas = RespostaCandidaturaSerializer(many=True, read_only=True)
 
     class Meta(CandidaturaListaSerializer.Meta):
-        fields = CandidaturaListaSerializer.Meta.fields + ["historico", "encaminhada_em"]
+        fields = CandidaturaListaSerializer.Meta.fields + [
+            "historico",
+            "encaminhada_em",
+            "respostas",
+        ]
         read_only_fields = fields
 
     def get_analise(self, candidatura):
@@ -598,6 +625,12 @@ class CandidaturaDetalheSerializer(CandidaturaListaSerializer):
 
 class NovaCandidaturaSerializer(serializers.Serializer):
     vaga = serializers.PrimaryKeyRelatedField(queryset=Vaga.objects.all())
+    # {chave: valor} do formulário de GET vagas/{id}/formulario/. Opcional por
+    # enquanto (app antigo não manda); ver formulario_candidatura.validar_respostas.
+    respostas = serializers.DictField(
+        child=serializers.CharField(allow_blank=True, trim_whitespace=True),
+        required=False,
+    )
 
     def validate_vaga(self, vaga):
         if not vaga.esta_aberta:
@@ -663,9 +696,17 @@ class CandidatoDetalheSerializer(CandidatoSerializer):
     historico = serializers.SerializerMethodField()
     curriculo = serializers.SerializerMethodField()
 
+    respostas = serializers.SerializerMethodField()
+
     class Meta(CandidatoSerializer.Meta):
-        fields = CandidatoSerializer.Meta.fields + ["vaga", "historico", "curriculo"]
+        fields = CandidatoSerializer.Meta.fields + ["vaga", "historico", "curriculo", "respostas"]
         read_only_fields = fields
+
+    def get_respostas(self, candidatura):
+        # Mesma regra do currículo: sem consentimento vigente, o TEIA não vê.
+        if not candidatura.aluno.consentimento_vigente:
+            return None
+        return RespostaCandidaturaSerializer(candidatura.respostas.all(), many=True).data
 
     def get_historico(self, candidatura):
         return AnaliseResumoSerializer(candidatura.analises.all(), many=True).data

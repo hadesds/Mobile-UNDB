@@ -36,7 +36,7 @@ Datas: `fim` não pode ser anterior a `inicio`. Competência e idioma não repet
 |---|---|---|
 | `me/perfil/arquivo/` | POST | multipart com `arquivo` (PDF ou `.docx`, até 5 MB e 30 páginas). Lê todas as páginas (no Word, também tabelas, listas e cabeçalho) e devolve 201 com `{arquivo, texto, sugestoes}`. Um arquivo por aluno: o novo substitui o anterior. `.doc` antigo, PDF escaneado (sem texto), PDF com senha → 400 com a mensagem em `arquivo` |
 | `me/perfil/arquivo/` | GET | `{arquivo, texto, sugestoes}`: o texto completo lido e as sugestões recalculadas (vocabulário e perfil atuais). 404 se não houver arquivo |
-| `me/perfil/arquivo/` | DELETE | apaga o registro e o arquivo do disco |
+| `me/perfil/arquivo/` | DELETE | apaga o registro e o arquivo guardado |
 | `me/perfil/arquivo/original/` | GET | o arquivo como foi enviado (`?baixar=1` para download) |
 | `me/perfil/importar/` | POST | `{formacoes, experiencias, competencias, idiomas, cursos}` com os campos de cada seção. Cria os válidos, ignora repetidos e devolve `{criados, ignorados, erros, perfil}` |
 
@@ -47,7 +47,8 @@ competências pelo vocabulário (nome e sinônimos, no texto inteiro), idiomas c
 (`B2`, "avançado", "fluente") e contato (e-mail, telefone, LinkedIn, GitHub; só informativo).
 Cada sugestão traz `trecho` (de onde veio), `faltando` (campos obrigatórios não achados) e
 `ja_existe`. Nada entra no perfil sem o aluno confirmar pelo `importar/`. Os arquivos ficam
-em `MEDIA_ROOT` (padrão `media/`), fora do acesso público.
+no Supabase Storage (bucket privado) quando `SUPABASE_STORAGE_BUCKET` está definida; senão,
+em `MEDIA_ROOT` (padrão `media/`). Nos dois casos ficam fora do acesso público: só saem pela API, com login.
 
 ## Catálogos
 
@@ -75,13 +76,65 @@ enviar a lista, ela **substitui** a anterior (campo omitido = mantém). Para
 | Rota | Método | Notas |
 |---|---|---|
 | `candidaturas/` | GET | candidaturas do próprio aluno, sem paginação. Filtro `?vaga=<id>` |
-| `candidaturas/` | POST | `{vaga}` → 201 com a candidatura e a primeira análise. Vaga precisa estar aberta; uma candidatura por vaga |
-| `candidaturas/{id}/` | GET | detalhe: `status`, `analise` (com `itens`), `historico`, `encaminhada_em` |
+| `vagas/{id}/formulario/` | GET | formulário de candidatura da vaga já preenchido com o perfil (ver abaixo) |
+| `candidaturas/` | POST | `{vaga, respostas?}` → 201 com a candidatura, as respostas e a primeira análise. Vaga precisa estar aberta; uma candidatura por vaga |
+| `candidaturas/{id}/` | GET | detalhe: `status`, `analise` (com `itens`), `historico`, `encaminhada_em`, `respostas` |
 | `candidaturas/{id}/reanalisar/` | POST | nova análise com o currículo atual; as anteriores ficam no `historico` |
 
 Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferente | nao_identificado), detalhe, obrigatorio`.
-`score` = requisitos com evidência ÷ requisitos cadastrados (mesmo peso); `faixa` segue
-`Analise.FAIXA_*` (provisório). O status da candidatura só muda por decisão do gestor.
+`score` = requisitos com evidência ÷ requisitos cadastrados (mesmo peso). `faixa`:
+**alta ≥ 75**, **media 50–74**, **baixa < 50** (`Analise.FAIXA_*`, falta confirmar com o TEIA).
+A análise traz a nota (`score` + `faixa`), a `justificativa` (uma frase: quantos requisitos
+têm evidência e quais obrigatórios faltam) e o `feedback_texto` (o que revisar no currículo).
+O status da candidatura só muda por decisão do gestor.
+
+### Formulário de candidatura ("cada vaga tem um currículo")
+
+Cada vaga tem um modelo de currículo com a lista de campos que ela pede. Vaga sem
+modelo ganha um padrão, só com os campos de perfil, na primeira vez que for aberta.
+
+`GET vagas/{id}/formulario/`:
+
+```json
+{
+  "vaga": 3,
+  "instrucoes": "Seus dados do perfil já vieram preenchidos. Complete as perguntas da Lumen.",
+  "candidatura": null,
+  "campos": [
+    {"chave": "nome", "rotulo": "Nome completo", "ajuda": "", "origem": "perfil",
+     "formato": "texto", "obrigatorio": true, "valor": "Marina Costa", "autopreenchido": true},
+    {"chave": "competencias", "rotulo": "Competências", "ajuda": "", "origem": "perfil",
+     "formato": "texto_longo", "obrigatorio": false, "valor": "Git (avançado)\nReact (intermediário)", "autopreenchido": true},
+    {"chave": "portfolio", "rotulo": "Link do GitHub ou portfólio", "ajuda": "Ex.: https://github.com/seu-usuario",
+     "origem": "vaga", "formato": "url", "obrigatorio": true, "valor": "", "autopreenchido": false}
+  ]
+}
+```
+
+- `origem`: `perfil` = veio preenchido e é editável; `vaga` = pergunta específica, vem em branco (destacar).
+- `formato`: `texto | texto_longo | numero | sim_nao | url`. Só muda o desenho; **o valor é sempre string**.
+  `sim_nao` usa `"sim"`/`"nao"`. Listas do perfil vêm com uma linha por item (`\n`).
+- Os campos chegam na ordem de exibição.
+- `candidatura` preenchido = o aluno já se candidatou; `valor` passa a ser o que ele enviou.
+
+`POST candidaturas/`:
+
+```json
+{"vaga": 3, "respostas": {"nome": "Marina Costa", "portfolio": "https://github.com/marina"}}
+```
+
+- Campo de perfil omitido = grava o valor do perfil. Campo de perfil alterado sai com `editado: true`.
+- Erro de validação → 400 `{"respostas": {"portfolio": "Campo obrigatório."}}` (uma mensagem por chave;
+  também para formato inválido e chave que não existe no formulário). Nada é gravado.
+- **Transição:** sem `respostas` (app antigo) a candidatura ainda é aceita, sem exigir os
+  obrigatórios da vaga. Remover quando a tela nova estiver no ar.
+
+Respostas na candidatura (aluno e `gestor/candidaturas/{id}/`; para o gestor é `null` se o aluno revogou o termo LGPD):
+`[{chave, rotulo, origem, valor, editado}]`. Rótulo e origem são copiados no envio, então a
+resposta continua legível mesmo se o gestor mudar o modelo depois.
+
+Modelos e campos são editados no Django admin (**Modelos de currículo**). O seed cria um
+para cada uma das 6 vagas de demonstração (`seed_dados.MODELOS_CURRICULO`).
 
 ## Triagem (gestor)
 
@@ -89,7 +142,7 @@ Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferen
 |---|---|---|
 | `gestor/painel/` | GET | resumo do painel: candidaturas aguardando decisão por vaga, vagas abertas, encaminhadas em 30 dias |
 | `vagas/{id}/candidatos/` | GET | `{requisitos, contagem, candidatos}`. Candidatos ordenados por score (maior primeiro), **nunca filtrados por nota**. Filtro `?status=` |
-| `gestor/candidaturas/{id}/` | GET | candidato completo: vaga, análise, histórico e currículo (`curriculo = null` se o aluno revogou o termo LGPD) |
+| `gestor/candidaturas/{id}/` | GET | candidato completo: vaga, análise, histórico, currículo e respostas do formulário (`curriculo` e `respostas` = `null` se o aluno revogou o termo LGPD) |
 | `gestor/candidaturas/{id}/decidir/` | POST | `{status, observacao?}`. `encaminhada`/`em_processo` criam o encaminhamento; `analisada` desfaz e volta para a fila |
 
 ## Vagas enviadas por empresas (módulo `solicitacoes`)

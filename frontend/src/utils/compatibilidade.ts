@@ -1,9 +1,11 @@
 import type { Faixa, StatusCandidatura } from "../types";
 import type { Tom } from "../components/Ui/Chip";
 
-// Faixas definidas pelo backend (Analise.FAIXA_*). Provisórias até validação com o TEIA.
-export const FAIXA_ALTA_MIN = 70;
-export const FAIXA_MEDIA_MIN = 40;
+// Cópia de Analise.FAIXA_* do backend (backend/models/vagas.py): mudou lá, mude aqui.
+// Provisórias até validação com o TEIA. A faixa de cada análise já vem pronta da API
+// (`faixa`); estes números servem só para texto explicativo e cor do indicador.
+export const FAIXA_ALTA_MIN = 75;
+export const FAIXA_MEDIA_MIN = 50;
 
 export const ROTULO_FAIXA: Record<Faixa, string> = {
   alta: "Compatibilidade alta",
@@ -40,13 +42,6 @@ export const ROTULO_STATUS_GESTOR: Record<StatusCandidatura, string> = {
   encaminhada: "Encaminhada",
   em_processo: "Em processo",
   nao_selecionada: "Não selecionada",
-};
-
-export const ROTULO_ETAPA_CURTO: Record<StatusCandidatura, string> = {
-  analisada: "Aguardando",
-  encaminhada: "Encaminh.",
-  em_processo: "Processo",
-  nao_selecionada: "Não sel.",
 };
 
 /** O que cada decisão significa, explicado ao gestor antes de confirmar. */

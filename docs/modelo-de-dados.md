@@ -1,6 +1,6 @@
 # Modelo de dados
 
-21 models no app `backend`, organizados em 4 módulos. Nomes das tabelas no banco levam o
+24 models no app `backend`, organizados em 5 módulos. Nomes das tabelas no banco levam o
 prefixo `backend_` (ex.: `backend_vaga`).
 
 ## Diagrama (campos principais)
@@ -34,6 +34,10 @@ erDiagram
     CANDIDATURA ||--o{ ANALISE : "histórico"
     CANDIDATURA ||--o| ENCAMINHAMENTO : "decisão humana"
     GESTOR ||--o{ ENCAMINHAMENTO : decide
+    VAGA ||--o| MODELO_CURRICULO : "currículo da vaga"
+    MODELO_CURRICULO ||--o{ CAMPO_MODELO : pede
+    CANDIDATURA ||--o{ RESPOSTA_CANDIDATURA : "formulário enviado"
+    CAMPO_MODELO |o--o{ RESPOSTA_CANDIDATURA : responde
 
     FACULDADE {
         int id PK
@@ -161,6 +165,28 @@ erDiagram
         int id PK
         int candidatura_id FK
         int gestor_id FK
+    }
+    MODELO_CURRICULO {
+        int id PK
+        int vaga_id FK
+        text instrucoes
+    }
+    CAMPO_MODELO {
+        int id PK
+        int modelo_id FK
+        string chave
+        string origem
+        string fonte_perfil
+        string formato
+        bool obrigatorio
+    }
+    RESPOSTA_CANDIDATURA {
+        int id PK
+        int candidatura_id FK
+        int campo_id FK
+        string chave
+        text valor
+        bool editado
     }
 ```
 
@@ -389,7 +415,7 @@ Regra no `clean()`: na criação, o aluno precisa ter `consentimento_vigente`.
 | versao_motor | Char(30) | padrão `regras-0.1` |
 | criada_em | DateTime | automático |
 
-`faixa`: `alta` ≥ 70, `media` ≥ 40, senão `baixa` (limiares **provisórios**).
+`faixa`: `alta` ≥ 75, `media` ≥ 50, senão `baixa` (limiares **provisórios**, confirmar com o TEIA). `justificativa`: frase derivada dos itens (não gravada).
 
 **Encaminhamento** (decisão humana)
 
@@ -400,6 +426,40 @@ Regra no `clean()`: na criação, o aluno precisa ter `consentimento_vigente`.
 | observacao | Text | blank |
 | criado_em | DateTime | automático |
 
+### Módulo `modelo_curriculo.py` ("cada vaga tem um currículo")
+
+**ModeloCurriculo**
+
+| Campo | Tipo | Regras |
+| --- | --- | --- |
+| vaga | OneToOne → Vaga | CASCADE. Vaga sem modelo ganha um padrão (só campos de perfil) ao abrir o formulário |
+| instrucoes | Text | blank. Exibido no topo do formulário |
+| criado_em / atualizado_em | DateTime | automático |
+
+**CampoModelo**
+
+| Campo | Tipo | Regras |
+| --- | --- | --- |
+| modelo | FK → ModeloCurriculo | CASCADE |
+| chave | Slug(50) | UK com `modelo`. Nome do campo na API |
+| rotulo / ajuda | Char(150) / Char(255) | ajuda blank |
+| origem | Char(10) | `perfil` (sai preenchido) · `vaga` (sai em branco) |
+| fonte_perfil | Char(30) | obrigatório se origem = perfil, vazio se vaga. `nome, email, matricula, curso, periodo, formacao, experiencias, competencias, idiomas, cursos_complementares` |
+| formato | Char(15) | `texto` · `texto_longo` · `numero` · `sim_nao` · `url` |
+| obrigatorio | Bool | padrão True |
+| ordem | PositiveSmallInt | ordem de exibição |
+
+**RespostaCandidatura**
+
+| Campo | Tipo | Regras |
+| --- | --- | --- |
+| candidatura | FK → Candidatura | CASCADE |
+| campo | FK → CampoModelo | SET_NULL (a resposta sobrevive se o campo for apagado) |
+| chave / rotulo / origem | cópias do campo no envio | UK (`candidatura`, `chave`) |
+| valor | Text | sempre texto; até 5000 caracteres |
+| editado | Bool | campo de perfil cujo valor o aluno mudou |
+| ordem | PositiveSmallInt | |
+
 ## Decisões de modelagem
 
 - **Análise com histórico:** atualizar o currículo gera nova análise; as anteriores não
@@ -407,6 +467,11 @@ Regra no `clean()`: na criação, o aluno precisa ter `consentimento_vigente`.
 - **Sem eliminação automática:** não existe status "eliminado".
 - **Empresa não é usuário** no MVP; entra como entidade de dados.
 - **Idiomas** são lista fixa com níveis numéricos para permitir regras como "Inglês ≥ intermediário".
+- **Cada vaga tem um currículo:** `ModeloCurriculo` lista os campos que a vaga pede. Campo
+  de `perfil` sai preenchido; campo da `vaga` sai em branco. A resposta guarda cópia de
+  chave, rótulo e origem, para continuar legível se o gestor mudar o modelo depois.
+- **Valores do formulário são texto:** o `formato` só orienta o desenho no app. Assim um
+  campo novo não exige migração nem mudança de tipo na API.
 
 ## Pontos em aberto
 

@@ -14,6 +14,7 @@ from .curriculo import (
     normalizar_termo,
 )
 from .faculdade import Curso, Faculdade, NucleoCarreiras
+from .modelo_curriculo import CampoModelo, ModeloCurriculo, RespostaCandidatura
 from .usuarios import VERSAO_TERMO_LGPD, Aluno, Gestor, Usuario
 from .vagas import (
     Analise,
@@ -53,4 +54,7 @@ __all__ = [
     "Candidatura",
     "Analise",
     "Encaminhamento",
+    "ModeloCurriculo",
+    "CampoModelo",
+    "RespostaCandidatura",
 ]

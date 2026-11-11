@@ -13,9 +13,11 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from backend.formulario_candidatura import CAMPOS_PERFIL_PADRAO
 from backend.management import seed_dados as D
 from backend.models import (
     Aluno,
+    CampoModelo,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -26,6 +28,7 @@ from backend.models import (
     Formacao,
     Gestor,
     IdiomaPerfil,
+    ModeloCurriculo,
     NucleoCarreiras,
     PerfilCompetencias,
     RequisitoCompetencia,
@@ -222,7 +225,35 @@ class Command(BaseCommand):
                     for i, n, o in v["idiomas"]
                 ]
             )
+            self._modelo_curriculo(vaga, D.MODELOS_CURRICULO.get(v["titulo"]))
         self._log("vagas", len(D.VAGAS))
+
+    def _modelo_curriculo(self, vaga, dados):
+        """Campos de perfil padrão + campos específicos da vaga (seed_dados.MODELOS_CURRICULO).
+
+        Atualiza os campos pela chave (em vez de apagar e recriar) para não soltar
+        as respostas de candidaturas que já existem.
+        """
+        dados = dados or {"instrucoes": "", "campos": []}
+        modelo, _ = ModeloCurriculo.objects.update_or_create(
+            vaga=vaga, defaults={"instrucoes": dados["instrucoes"]}
+        )
+        campos = [
+            {"chave": c, "rotulo": r, "origem": "perfil", "fonte_perfil": f, "formato": fmt,
+             "obrigatorio": o, "ajuda": ""}
+            for c, r, f, fmt, o in CAMPOS_PERFIL_PADRAO
+        ] + [
+            {"chave": c, "rotulo": r, "origem": "vaga", "fonte_perfil": "", "formato": fmt,
+             "obrigatorio": o, "ajuda": ajuda}
+            for c, r, fmt, o, ajuda in dados["campos"]
+        ]
+        chaves = [c["chave"] for c in campos]
+        for ordem, campo in enumerate(campos):
+            chave = campo.pop("chave")
+            CampoModelo.objects.update_or_create(
+                modelo=modelo, chave=chave, defaults={**campo, "ordem": ordem}
+            )
+        modelo.campos.exclude(chave__in=chaves).delete()
 
     def _log(self, nome, qtd):
         self.stdout.write(f"  {nome}: {qtd}")

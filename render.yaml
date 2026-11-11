@@ -24,3 +24,14 @@ services:
         value: "1"
       - key: SEED_SENHA
         sync: false
+      # Supabase Storage (arquivos enviados). Sem isso, os uploads somem a cada deploy.
+      - key: SUPABASE_STORAGE_BUCKET
+        sync: false
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false # https://<project-ref>.supabase.co/storage/v1/s3
+      - key: SUPABASE_S3_REGION
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: SUPABASE_S3_SECRET_ACCESS_KEY
+        sync: false

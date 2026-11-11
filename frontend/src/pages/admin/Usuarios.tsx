@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { atualizarUsuario, criarGestor, listarNucleos, listarUsuarios } from "../../api/admin";
-import { Alternar } from "../../components/gestao/Alternar";
 import { Busca } from "../../components/gestao/Busca";
 import { errosDaApi, Erros, FolhaFormulario } from "../../components/gestao/FolhaFormulario";
 import { Grupo, Linha } from "../../components/gestao/Lista";

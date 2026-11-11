@@ -18,6 +18,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from backend.compatibilidade import analisar
+from backend.formulario_candidatura import (
+    RespostasInvalidas,
+    modelo_da_vaga,
+    montar_formulario,
+    salvar_respostas,
+    validar_respostas,
+)
 from backend.leitura_curriculo import LIMITE_BYTES, ArquivoInvalido, extrair, ler_arquivo
 from backend.models import (
     Aluno,
@@ -540,6 +547,23 @@ class VagaViewSet(SemDelete, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(gestor=self.request.user.gestor)
 
+    @action(detail=True, methods=["get"], permission_classes=[IsAlunoComConsentimento])
+    def formulario(self, request, pk=None):
+        """Formulário de candidatura da vaga, já preenchido com o perfil do aluno.
+
+        Campos `origem=perfil` vêm com `valor` preenchido (editável); campos
+        `origem=vaga` vêm vazios. Se o aluno já se candidatou, devolve o que ele
+        enviou e `candidatura` com o id. Formato em docs/api.md.
+        """
+        vaga = self.get_object()  # queryset do aluno: só vagas abertas
+        aluno = request.user.aluno
+        candidatura = (
+            Candidatura.objects.filter(aluno=aluno, vaga=vaga)
+            .prefetch_related("respostas")
+            .first()
+        )
+        return Response(montar_formulario(aluno, vaga, candidatura))
+
     @action(detail=True, methods=["get"], permission_classes=[IsGestor])
     def candidatos(self, request, pk=None):
         """Candidatos da vaga ordenados por compatibilidade (nunca filtrados por nota)."""
@@ -588,7 +612,8 @@ class CandidaturaViewSet(
             Candidatura.objects.filter(aluno=self.request.user.aluno)
             .select_related("vaga__empresa", "encaminhamento")
             .prefetch_related(
-                Prefetch("analises", queryset=Analise.objects.order_by("-criada_em"))
+                Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")),
+                "respostas",
             )
             .order_by("-criada_em")
         )
@@ -610,8 +635,21 @@ class CandidaturaViewSet(
         aluno = request.user.aluno
         ser = NovaCandidaturaSerializer(data=request.data, context={"aluno": aluno})
         ser.is_valid(raise_exception=True)
-        candidatura = Candidatura.objects.create(aluno=aluno, vaga=ser.validated_data["vaga"])
-        analisar(candidatura)
+        vaga = ser.validated_data["vaga"]
+        try:
+            linhas = validar_respostas(
+                aluno, modelo_da_vaga(vaga), ser.validated_data.get("respostas")
+            )
+        except RespostasInvalidas as e:
+            # {"respostas": {"motivacao": "Campo obrigatório."}}: o app marca cada campo.
+            return Response({"respostas": e.erros}, status=status.HTTP_400_BAD_REQUEST)
+        # Candidatura, respostas e primeira análise entram juntas ou nenhuma entra.
+        with transaction.atomic():
+            candidatura = Candidatura.objects.create(aluno=aluno, vaga=vaga)
+            salvar_respostas(candidatura, linhas)
+            # TODO(T1): gravar aqui os certificados escolhidos (CandidaturaCertificado)
+            # ANTES de analisar, para eles contarem como evidência.
+            analisar(candidatura)
         return self._detalhe(candidatura.pk, status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -648,7 +686,9 @@ def _ordem_requisitos(vaga) -> list[dict]:
 def _candidaturas_gestor():
     return Candidatura.objects.select_related(
         "aluno__usuario", "aluno__curso", "vaga__empresa", "encaminhamento__gestor__usuario"
-    ).prefetch_related(Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")))
+    ).prefetch_related(
+        Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")), "respostas"
+    )
 
 
 class PainelGestorView(APIView):

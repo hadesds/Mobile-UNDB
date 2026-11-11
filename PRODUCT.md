@@ -46,8 +46,8 @@ Núcleo de Carreiras TEIA. Backend Django + DRF com JWT; empresas não têm logi
   desativadas.
 - Status da candidatura: analisada → encaminhada → em processo; ou não selecionada.
   Só o gestor muda o status.
-- Score = requisitos com evidência ÷ requisitos cadastrados; faixas alta ≥ 70,
-  média ≥ 40 (provisórias, a validar com o TEIA).
+- Score = requisitos com evidência ÷ requisitos cadastrados; faixas alta ≥ 75,
+  média ≥ 50 (provisórias, a validar com o TEIA).
 
 ## Brand Commitments
 

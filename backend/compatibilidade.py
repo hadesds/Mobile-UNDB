@@ -36,7 +36,14 @@ def _item(requisito, categoria, tipo, status, detalhe, obrigatorio=True):
 
 
 def _evidencia_competencia(perfil, nome: str) -> str | None:
-    """Procura a competência citada em experiências ou cursos complementares."""
+    """Procura a competência citada em experiências ou cursos complementares.
+
+    TODO(T1 · certificados): incluir aqui os certificados que o aluno marcou
+    para a candidatura (CandidaturaCertificado). Hoje `avaliar` recebe só
+    (aluno, vaga); passe a candidatura (ou a lista de certificados) por
+    parâmetro e procure `nome` no título do certificado, devolvendo algo como
+    "Certificado: <título> · <instituição>". Ao mudar a regra, suba VERSAO_MOTOR.
+    """
     chave = normalizar_termo(nome)
     for exp in perfil.experiencias.all():
         texto = normalizar_termo(f"{exp.funcao} {exp.descricao}")

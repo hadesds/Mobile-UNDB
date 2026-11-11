@@ -203,9 +203,12 @@ class Analise(models.Model):
         MEDIA = "media", "Média"
         ALTA = "alta", "Alta"
 
-    # PROVISÓRIO: o cálculo, os pesos e as faixas ainda serão validados com o TEIA.
-    FAIXA_MEDIA_MIN = 40
-    FAIXA_ALTA_MIN = 70
+    # PROVISÓRIO: Alta >= 75%, Média 50–74%, Baixa < 50% (definido pelo time).
+    # O app repete estes números em frontend/src/utils/compatibilidade.ts.
+    # TODO(TEIA): confirmar as faixas. Mudar só estes dois números basta: a faixa
+    # é calculada na hora (não fica gravada), então análises antigas acompanham.
+    FAIXA_MEDIA_MIN = 50
+    FAIXA_ALTA_MIN = 75
 
     candidatura = models.ForeignKey(
         Candidatura, on_delete=models.CASCADE, related_name="analises"
@@ -239,6 +242,28 @@ class Analise(models.Model):
         if self.score >= self.FAIXA_MEDIA_MIN:
             return self.Faixa.MEDIA
         return self.Faixa.BAIXA
+
+    @property
+    def justificativa(self) -> str:
+        """Explica de onde veio a nota, em uma frase (sem julgar o aluno).
+
+        Derivada dos itens gravados, então vale também para análises antigas.
+        """
+        atendidos = len(self.requisitos_atendidos)
+        total = atendidos + len(self.requisitos_faltantes)
+        if total == 0:
+            return "A vaga não tem requisitos cadastrados, por isso não há nota de compatibilidade."
+        rotulo = self.Faixa(self.faixa).label.lower()
+        texto = (
+            f"{atendidos} de {total} requisitos da vaga têm evidência no seu currículo "
+            f"({self.score}%), o que corresponde à faixa {rotulo}."
+        )
+        obrigatorios = [
+            i["requisito"] for i in self.requisitos_faltantes if i.get("obrigatorio", True)
+        ]
+        if obrigatorios:
+            texto += " Obrigatórios sem evidência: " + ", ".join(obrigatorios) + "."
+        return texto
 
 
 class Encaminhamento(models.Model):

@@ -4,6 +4,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     Aluno,
     Analise,
+    CampoModelo,
     Candidatura,
     Competencia,
     CompetenciaDoPerfil,
@@ -16,10 +17,12 @@ from .models import (
     Formacao,
     Gestor,
     IdiomaPerfil,
+    ModeloCurriculo,
     NucleoCarreiras,
     PerfilCompetencias,
     RequisitoCompetencia,
     RequisitoIdioma,
+    RespostaCandidatura,
     SinonimoCompetencia,
     Usuario,
     Vaga,
@@ -162,12 +165,25 @@ class AnaliseInline(admin.TabularInline):
     readonly_fields = ["criada_em"]
 
 
+class RespostaCandidaturaInline(admin.TabularInline):
+    """O que o aluno enviou. Somente leitura: é o registro da candidatura."""
+
+    model = RespostaCandidatura
+    extra = 0
+    can_delete = False
+    fields = ["rotulo", "origem", "valor", "editado"]
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Candidatura)
 class CandidaturaAdmin(admin.ModelAdmin):
     list_display = ["aluno", "vaga", "status", "criada_em"]
     list_filter = ["status"]
     search_fields = ["aluno__usuario__nome", "vaga__titulo"]
-    inlines = [AnaliseInline]
+    inlines = [AnaliseInline, RespostaCandidaturaInline]
 
 
 @admin.register(Analise)
@@ -182,3 +198,30 @@ class EncaminhamentoAdmin(admin.ModelAdmin):
     
 
 admin.site.register([Faculdade, Curso, NucleoCarreiras])
+
+
+# ---------------------------------------------------------------------------
+# Modelo de currículo por vaga (T2)
+# TODO(T4): quando entrar o django-unfold/jazzmin, colocar o modelo também como
+# link/inline na tela da vaga, para o gestor editar tudo num lugar só.
+# ---------------------------------------------------------------------------
+
+
+class CampoModeloInline(admin.TabularInline):
+    model = CampoModelo
+    extra = 1
+    fields = ["ordem", "chave", "rotulo", "origem", "fonte_perfil", "formato", "obrigatorio", "ajuda"]
+    prepopulated_fields = {"chave": ["rotulo"]}
+
+
+@admin.register(ModeloCurriculo)
+class ModeloCurriculoAdmin(admin.ModelAdmin):
+    list_display = ["vaga", "n_campos", "atualizado_em"]
+    search_fields = ["vaga__titulo", "vaga__empresa__nome"]
+    autocomplete_fields = ["vaga"]
+    inlines = [CampoModeloInline]
+
+    @admin.display(description="campos")
+    def n_campos(self, obj):
+        return obj.campos.count()
+

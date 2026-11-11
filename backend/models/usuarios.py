@@ -68,14 +68,6 @@ class Usuario(AbstractUser):
         self.email = self.email.lower()
         super().save(*args, **kwargs)
 
-    @property
-    def eh_aluno(self) -> bool:
-        return self.perfil == self.Perfil.ALUNO
-
-    @property
-    def eh_gestor(self) -> bool:
-        return self.perfil == self.Perfil.GESTOR
-
 
 class Aluno(models.Model):
     usuario = models.OneToOneField(
