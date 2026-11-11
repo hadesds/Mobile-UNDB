@@ -25,7 +25,7 @@ import VagaGestor from "../pages/gestor/VagaGestor";
 import VagasGestor from "../pages/gestor/VagasGestor";
 import Login from "../pages/Login";
 import VagaDetalhe from "../pages/VagaDetalhe";
-import Vagas from "../pages/Vagas";
+import Inicio from "../pages/Inicio";
 import { useAuth } from "./auth";
 import type { StatusVaga } from "../types";
 import { CandidaturasProvider } from "./candidaturas";
@@ -120,7 +120,7 @@ const detalhes = (
 function VagasNavigator() {
   return (
     <Stack.Navigator screenOptions={cabecalho}>
-      <Stack.Screen name="VagasLista" component={Vagas} options={{ headerShown: false, title: "Vagas" }} />
+      <Stack.Screen name="VagasLista" component={Inicio} options={{ headerShown: false, title: "Início" }} />
       {detalhes}
     </Stack.Navigator>
   );
@@ -160,7 +160,8 @@ function useOpcoesAbas() {
     headerShown: false,
     tabBarActiveTintColor: colors.primaryDark,
     tabBarInactiveTintColor: colors.muted,
-    tabBarLabelStyle: { fontSize: 12, fontWeight: "600" as const },
+    tabBarLabelStyle: { fontSize: 11, fontWeight: "600" as const },
+    tabBarItemStyle: { paddingHorizontal: 0 },
     tabBarStyle: {
       height: 70 + insets.bottom,
       paddingTop: 8,
@@ -177,7 +178,7 @@ function AlunoTabs() {
   return (
     <CandidaturasProvider>
       <Tabs.Navigator screenOptions={opcoes}>
-        <Tabs.Screen name="VagasTab" component={VagasNavigator} options={{ title: "Vagas", tabBarIcon: icone("vagas") }} />
+        <Tabs.Screen name="VagasTab" component={VagasNavigator} options={{ title: "Início", tabBarIcon: icone("vagas") }} />
         <Tabs.Screen
           name="CandidaturasTab"
           component={CandidaturasNavigator}

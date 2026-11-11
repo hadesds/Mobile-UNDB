@@ -60,15 +60,13 @@ export function Chip({ texto, tom = "neutro", icone, selecionado, onPress, remov
 
 const styles = StyleSheet.create({
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
     alignSelf: "flex-start",
+    flexShrink: 1, // rótulo longo quebra linha em vez de sair da tela
     borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   tocavel: { minHeight: 36, paddingHorizontal: 14 },
-  contorno: { borderWidth: 1, borderColor: colors.borderStrong },
-  texto: { fontSize: 13, fontWeight: "700" },
+  contorno: { borderWidth: 1, borderColor: colors.border },
+  texto: { fontSize: 13, fontWeight: "700", flexShrink: 1 },
 });
