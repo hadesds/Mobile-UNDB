@@ -111,6 +111,7 @@ export default function ImportarCurriculo({ navigation }: Props) {
   const [edicao, setEdicao] = useState<Edicao>(null);
   const [editando, setEditando] = useState<Chave | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [apagarArquivo, setApagarArquivo] = useState(true);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
 
   const l: LeituraCurriculo | null = leitura.dados;
@@ -170,7 +171,7 @@ export default function ImportarCurriculo({ navigation }: Props) {
     setSalvando(true);
     setErroGeral(null);
     try {
-      const r = await importarSugestoes(corpo);
+      const r = await importarSugestoes(corpo, apagarArquivo);
       const criados = Object.values(r.criados).reduce((a, b) => a + b, 0);
       if (r.erros.length) {
         setErroGeral(
@@ -293,6 +294,10 @@ export default function ImportarCurriculo({ navigation }: Props) {
 
       {novos > 0 && (
         <View style={[styles.barra, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <Pressable accessibilityRole="checkbox" accessibilityLabel="Apagar arquivo original após importar" aria-checked={apagarArquivo} accessibilityState={{ checked: apagarArquivo, disabled: salvando }} disabled={salvando} onPress={() => setApagarArquivo(v => !v)} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 }}>
+            <Icone nome={apagarArquivo ? "check" : "curriculo"} tamanho={20} cor={colors.primary} />
+            <Text style={[styles.erroTexto, { color: colors.text, flex: 1 }]}>Apagar arquivo original e texto extraído após importar sem erros</Text>
+          </Pressable>
           {!!erroGeral && (
             <View style={styles.erro} accessibilityLiveRegion="polite">
               <Icone nome="alerta" tamanho={16} cor={colors.danger} />

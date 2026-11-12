@@ -1,0 +1,6 @@
+__pycache__/
+db.sqlite3
+media/
+web/
+android/
+importacao-demo.docx

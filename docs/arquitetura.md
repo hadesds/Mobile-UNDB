@@ -158,8 +158,8 @@ revisado por outra pessoa. Combine as migrações antes.
 | **T2** Modelo de currículo por vaga | ✅ backend · ⏳ frontend | Backend pronto: `modelo_curriculo.py`, `formulario_candidatura.py`, `GET vagas/{id}/formulario/`. Frontend: tipos e `buscarFormulario`/`candidatar(vaga, respostas)` já existem; falta a tela. Depois, tornar `respostas` obrigatório (`TODO` em `formulario_candidatura.validar_respostas`) |
 | **T3** Limpar a UI | ⏳ em andamento | `constants/theme.ts`, `components/Ui/`, `DESIGN.md` |
 | **T4** Painel admin web | ⏳ parcial | Admin do Django já tem vagas com requisitos, candidaturas com análises e respostas, modelos de currículo. Falta tema (unfold/jazzmin), permissões por perfil e tela de triagem. `TODO(T4)` em `backend/admin.py` |
-| **T5** Importar currículo e autopreencher | 🟡 boa parte pronta | Upload PDF/DOCX, leitura, sugestões e confirmação já funcionam (`leitura_curriculo.py`, `ImportarCurriculo.tsx`). Falta definir com o time: apagar o arquivo original após importar (LGPD) e usar a importação para sugerir respostas do formulário da vaga |
-| **T6** Exportar currículo em PDF | ⏳ não iniciado | Endpoint previsto `GET me/curriculo/pdf/`, gerado na hora a partir do perfil. Os textos por seção já prontos em `formulario_candidatura.py` (`_formacao`, `_experiencias`...) podem ser reaproveitados |
+| **T5** Importar currículo e autopreencher | ✅ fluxo implementado | PDF com texto e DOCX → sugestões → revisão → confirmação. O app oferece apagar original e texto após confirmação sem erros. PDFs escaneados e `.doc` não são aceitos. Certificados e sugestões para respostas específicas de vagas ficam para integração futura |
+| **T6** Exportar currículo em PDF | ✅ implementado | `GET me/curriculo/pdf/`, ReportLab em memória com perfil atual, seleção de seções, download web e compartilhamento nativo. `backend/exportacao_curriculo.py` e `components/curriculo/ExportarCurriculo.tsx`. Certificados dependem da T1 |
 
 Os `TODO(...)` no código indicam onde cada pessoa entra. Para listar:
 

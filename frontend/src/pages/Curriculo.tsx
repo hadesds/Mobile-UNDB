@@ -6,6 +6,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { buscarCurriculo } from "../api/curriculo";
 import { Edicao, FormularioItem } from "../components/curriculo/FormularioItem";
 import { ImportarArquivo } from "../components/curriculo/ImportarArquivo";
+import { ExportarCurriculo } from "../components/curriculo/ExportarCurriculo";
 import { CabecalhoTela } from "../components/Layout/CabecalhoTela";
 import { Carregando } from "../components/Layout/Carregando";
 import { Expansivel } from "../components/Movimento/Expansivel";
@@ -282,6 +283,10 @@ export default function Curriculo({ navigation }: Props) {
           </Surgir>
 
           <Surgir indice={1}>
+            <ExportarCurriculo />
+          </Surgir>
+
+          <Surgir indice={2}>
             <ImportarArquivo
               arquivo={dados.arquivo}
               onEnviado={() => navigation.navigate("ImportarCurriculo")}
