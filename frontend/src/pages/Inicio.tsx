@@ -1,7 +1,7 @@
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { listarCandidaturas } from "../api/candidaturas";
@@ -9,10 +9,10 @@ import { listarVagas } from "../api/vagas";
 import { Carregando } from "../components/Layout/Carregando";
 import { Abas } from "../components/Ui/Abas";
 import { ResumoCartao, ResumoFaixa } from "../components/Ui/ResumoCartao";
-import { Botao, Chip } from "../components/Ui";
+import { Botao, Chip, EsqueletoLista, Vazio } from "../components/Ui";
 import { CartaoCandidatura } from "../components/vagas/CartaoCandidatura";
 import { CartaoVaga } from "../components/vagas/CartaoVaga";
-import { colors, radius, spacing } from "../constants/theme";
+import { colors, font, radius, spacing } from "../constants/theme";
 import { useRecurso } from "../hooks/useRecurso";
 import { request } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -71,6 +71,8 @@ export default function Inicio({ navigation }: Props) {
   });
 
   const carregando = vagas.carregando || candidaturas.carregando || perfil.carregando;
+  const carregandoLista = aba === "candidaturas" ? candidaturas.carregando && !candidaturas.dados : vagas.carregando && !vagas.dados;
+  const erroLista = aba === "candidaturas" ? candidaturas.erro : vagas.erro;
   const recarregarTudo = () => {
     vagas.recarregar();
     candidaturas.recarregar();
@@ -90,7 +92,7 @@ export default function Inicio({ navigation }: Props) {
   const cabecalho = (
     <View style={styles.cabecalho}>
       <View style={{ gap: 4 }}>
-        <Text style={styles.ola}>Olá, {primeiroNome}</Text>
+        <Text style={styles.ola} accessibilityRole="header">Olá, {primeiroNome}</Text>
         <Text style={styles.subtitulo}>Acompanhe suas candidaturas e deixe seu currículo em dia.</Text>
       </View>
 
@@ -130,6 +132,7 @@ export default function Inicio({ navigation }: Props) {
               onChangeText={setBusca}
               onSubmitEditing={() => setQ(busca.trim())}
               returnKeyType="search"
+              accessibilityLabel="Buscar vagas por cargo ou empresa"
             />
             <Chip
               texto={qtdFiltros ? `Filtros (${qtdFiltros})` : "Filtros"}
@@ -141,7 +144,7 @@ export default function Inicio({ navigation }: Props) {
           {filtrosAbertos && (
             <View style={styles.painelFiltros}>
               <Text style={styles.rotuloFiltro}>Tipo de vaga</Text>
-              <View style={styles.filtros}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
                 {(Object.keys(ROTULO_TIPO) as TipoVaga[]).map((t) => (
                   <Chip
                     key={t}
@@ -150,9 +153,9 @@ export default function Inicio({ navigation }: Props) {
                     onPress={() => setTipo(tipo === t ? undefined : t)}
                   />
                 ))}
-              </View>
+              </ScrollView>
               <Text style={styles.rotuloFiltro}>Modalidade</Text>
-              <View style={styles.filtros}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
                 {(Object.keys(ROTULO_MODALIDADE) as Modalidade[]).map((m) => (
                   <Chip
                     key={m}
@@ -161,7 +164,7 @@ export default function Inicio({ navigation }: Props) {
                     onPress={() => setModalidade(modalidade === m ? undefined : m)}
                   />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           )}
 
@@ -180,6 +183,7 @@ export default function Inicio({ navigation }: Props) {
 
   return (
     <FlatList<Vaga | CandidaturaResumo>
+      keyboardShouldPersistTaps="handled"
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={[styles.lista, { paddingTop: insets.top + spacing.md }]}
       data={itens}
@@ -194,33 +198,39 @@ export default function Inicio({ navigation }: Props) {
         )
       }
       ListEmptyComponent={
-        carregando ? undefined : aba === "candidaturas" ? (
-          <View style={styles.vazio}>
-            <Text style={styles.vazioTitulo}>Nenhuma candidatura ainda</Text>
-            <Text style={styles.vazioTexto}>
-              Quando você se candidatar a uma vaga, ela aparece aqui com o andamento.
-            </Text>
-            <Botao titulo="Ver vagas abertas" variante="contorno" onPress={() => setAba("abertas")} />
-          </View>
+        carregandoLista ? (
+          <EsqueletoLista itens={3} />
+        ) : erroLista ? (
+          <Vazio
+            icone="alerta"
+            titulo="Não deu para carregar"
+            texto={erroLista}
+            acao={<Botao titulo="Tentar novamente" variante="contorno" icone="atualizar" onPress={recarregarTudo} />}
+          />
+        ) : aba === "candidaturas" ? (
+          <Vazio
+            icone="candidaturas"
+            titulo="Nenhuma candidatura ainda"
+            texto="Quando você se candidatar a uma vaga, ela aparece aqui com o andamento."
+            acao={<Botao titulo="Ver vagas abertas" variante="contorno" onPress={() => setAba("abertas")} />}
+          />
         ) : aba === "encerrando" ? (
-          <View style={styles.vazio}>
-            <Text style={styles.vazioTitulo}>Nada encerrando por agora</Text>
-            <Text style={styles.vazioTexto}>
-              Nenhuma vaga tem prazo nos próximos {DIAS_ENCERRANDO} dias.
-            </Text>
-          </View>
+          <Vazio
+            icone="calendario"
+            titulo="Nada encerrando por agora"
+            texto={`Nenhuma vaga tem prazo nos próximos ${DIAS_ENCERRANDO} dias.`}
+          />
         ) : (
-          <View style={styles.vazio}>
-            <Text style={styles.vazioTitulo}>Nenhuma vaga por aqui</Text>
-            <Text style={styles.vazioTexto}>
-              {q || tipo || modalidade
-                ? "Tente remover algum filtro ou mudar a busca."
-                : "Ainda não há vagas abertas. Quando o TEIA publicar novas oportunidades, elas aparecem aqui."}
-            </Text>
-          </View>
+          <Vazio
+            icone="vagas"
+            titulo="Nenhuma vaga por aqui"
+            texto={q || tipo || modalidade
+              ? "Tente remover algum filtro ou mudar a busca."
+              : "Ainda não há vagas abertas. Quando o TEIA publicar novas oportunidades, elas aparecem aqui."}
+          />
         )
       }
-      refreshControl={<RefreshControl refreshing={carregando} onRefresh={recarregarTudo} />}
+      refreshControl={<RefreshControl refreshing={carregando && !!vagas.dados} onRefresh={recarregarTudo} tintColor={colors.primary} colors={[colors.primary]} />}
     />
   );
 }
@@ -228,16 +238,17 @@ export default function Inicio({ navigation }: Props) {
 const styles = StyleSheet.create({
   lista: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
   cabecalho: { gap: spacing.md, marginBottom: spacing.md },
-  ola: { fontSize: 26, fontWeight: "800", color: colors.text },
-  subtitulo: { fontSize: 15, color: colors.muted, lineHeight: 21 },
+  ola: { ...font.title, fontSize: 28, lineHeight: 34 },
+  subtitulo: { ...font.body, color: colors.muted },
   resumo: { gap: spacing.sm + 2 },
   resumoLinha: { flexDirection: "row", gap: spacing.sm + 2 },
   filtrosBloco: { gap: spacing.sm + 4 },
   buscaLinha: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   busca: {
     flex: 1,
+    minWidth: 0,
     minHeight: 48,
-    borderRadius: radius.sm,
+    borderRadius: radius.sm + 2,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -254,9 +265,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   rotuloFiltro: { fontSize: 13, fontWeight: "700", color: colors.muted },
-  filtros: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  contagem: { fontSize: 13, color: colors.muted },
-  vazio: { alignItems: "center", padding: spacing.xl, gap: spacing.sm + 4 },
-  vazioTitulo: { fontSize: 17, fontWeight: "700", color: colors.text },
-  vazioTexto: { fontSize: 14, color: colors.muted, textAlign: "center", lineHeight: 20 },
+  filtros: { gap: spacing.sm },
+  contagem: { ...font.small, fontVariant: ["tabular-nums"] },
 });

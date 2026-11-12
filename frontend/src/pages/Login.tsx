@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Surgir } from "../components/Movimento/Surgir";
 import { Botao, Campo, Icone } from "../components/Ui";
-import { colors, elevation, radius, spacing } from "../constants/theme";
+import { colors, elevation, font, radius, spacing } from "../constants/theme";
 import { useAuth } from "../lib/auth";
 import type { AuthStackParams } from "../lib/navigation";
 
@@ -63,7 +63,7 @@ export default function Login({ navigation }: Props) {
         </View>
 
         <Surgir indice={2} deslocamento={24} style={styles.cartao}>
-          <Text style={styles.cartaoTitulo}>Entrar</Text>
+          <Text style={styles.cartaoTitulo} accessibilityRole="header">Entrar</Text>
           <Campo
             rotulo="E-mail institucional"
             value={email}
@@ -126,17 +126,14 @@ const styles = StyleSheet.create({
     paddingBottom: 88,
     overflow: "hidden",
   },
-  circulo: { position: "absolute", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 999 },
+  circulo: { position: "absolute", borderWidth: 1, borderColor: colors.primaryDecoration, borderRadius: radius.pill },
   circulo1: { width: 340, height: 340, right: -150, top: -70 },
   circulo2: { width: 230, height: 230, right: -95, top: -15 },
-  circulo3: { width: 120, height: 120, right: -40, top: 40, borderColor: "rgba(255,255,255,0.12)" },
+  circulo3: { width: 120, height: 120, right: -40, top: 40, borderColor: colors.primaryDecorationSoft },
   nucleo: { color: colors.primaryText, fontSize: 13, fontWeight: "700", opacity: 0.85, marginTop: spacing.md },
   titulo: {
+    ...font.display,
     color: colors.primaryText,
-    fontSize: 38,
-    lineHeight: 42,
-    fontWeight: "800",
-    letterSpacing: -1,
   },
   subtitulo: { color: colors.primaryText, fontSize: 16, lineHeight: 23, marginTop: spacing.md, opacity: 0.94, maxWidth: 360 },
   cartao: {
@@ -144,11 +141,13 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginTop: -60,
     borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
     gap: spacing.md,
-    ...elevation.high,
+    ...elevation.low,
   },
-  cartaoTitulo: { fontSize: 22, fontWeight: "800", color: colors.text },
+  cartaoTitulo: { ...font.title },
   erro: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   erroTexto: { color: colors.danger, fontSize: 14, flex: 1 },
   divisor: { flexDirection: "row", alignItems: "center", gap: spacing.smd },

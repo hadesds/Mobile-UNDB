@@ -44,7 +44,7 @@ export function Tela({ children, rodape, atualizando, onAtualizar }: Props) {
 
 const styles = StyleSheet.create({
   raiz: { flex: 1, backgroundColor: colors.background },
-  conteudo: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+  conteudo: { flexGrow: 1, padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   rodape: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.smd,

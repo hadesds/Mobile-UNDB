@@ -24,7 +24,7 @@ export function Abas<T extends string>({ abas, ativa, onChange }: Props<T>) {
             onPress={() => onChange(a.chave)}
             style={[styles.aba, selecionada && styles.abaAtiva]}
           >
-            <Text style={[styles.texto, selecionada && styles.textoAtivo]} numberOfLines={1}>
+            <Text style={[styles.texto, selecionada && styles.textoAtivo]}>
               {a.rotulo}
             </Text>
           </Pressable>
@@ -44,13 +44,14 @@ const styles = StyleSheet.create({
   },
   aba: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   abaAtiva: { backgroundColor: colors.surface },
-  texto: { fontSize: 13, fontWeight: "600", color: colors.muted },
+  texto: { fontSize: 13, lineHeight: 18, textAlign: "center", fontWeight: "600", color: colors.muted },
   textoAtivo: { color: colors.primary, fontWeight: "700" },
 });

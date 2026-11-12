@@ -1,10 +1,10 @@
 import { DependencyList, useCallback, useEffect, useRef, useState } from "react";
 
-/** Carrega um recurso da API com estados de carregamento, erro e recarga. */
-export function useRecurso<T>(carregar: () => Promise<T>, deps: DependencyList) {
-  const [dados, setDados] = useState<T | null>(null);
+/** Dados iniciais dispensam o primeiro GET; recarregar continua consultando a API. */
+export function useRecurso<T>(carregar: () => Promise<T>, deps: DependencyList, inicial: T | null = null) {
+  const [dados, setDados] = useState<T | null>(inicial);
   const [erro, setErro] = useState<string | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(inicial === null);
   // Só a resposta da chamada mais recente vale (filtros trocados rápido).
   const ultima = useRef(0);
 
@@ -26,8 +26,15 @@ export function useRecurso<T>(carregar: () => Promise<T>, deps: DependencyList) 
   }, [executar]);
 
   useEffect(() => {
-    recarregar();
-  }, [recarregar]);
+    if (inicial !== null) {
+      ++ultima.current;
+      setDados(inicial);
+      setErro(null);
+      setCarregando(false);
+    } else {
+      void recarregar();
+    }
+  }, [recarregar, inicial]);
 
   return { dados, setDados, erro, carregando, recarregar };
 }
