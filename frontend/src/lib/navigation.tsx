@@ -13,6 +13,7 @@ import AdminUsuarios, { type FiltroUsuarios } from "../pages/admin/Usuarios";
 import VisaoGeral from "../pages/admin/VisaoGeral";
 import Cadastro from "../pages/Cadastro";
 import CandidaturaDetalhe from "../pages/CandidaturaDetalhe";
+import FormularioCandidatura from "../pages/FormularioCandidatura";
 import Candidaturas from "../pages/Candidaturas";
 import Conta from "../pages/Conta";
 import Curriculo from "../pages/Curriculo";
@@ -27,7 +28,7 @@ import Login from "../pages/Login";
 import VagaDetalhe from "../pages/VagaDetalhe";
 import Inicio from "../pages/Inicio";
 import { useAuth } from "./auth";
-import type { StatusVaga } from "../types";
+import type { Candidatura, StatusVaga } from "../types";
 import { CandidaturasProvider } from "./candidaturas";
 
 // ---- Tipos das rotas -------------------------------------------------------
@@ -44,7 +45,8 @@ export type AppStackParams = {
   CurriculoInicio: undefined;
   ImportarCurriculo: undefined;
   VagaDetalhe: { id: number };
-  Candidatura: { id: number; recemCriada?: boolean };
+  FormularioCandidatura: { id: number };
+  Candidatura: { id: number; recemCriada?: boolean; resultado?: Candidatura };
 };
 
 export type AlunoTabsParams = {
@@ -113,6 +115,7 @@ const cabecalho = {
 const detalhes = (
   <>
     <Stack.Screen name="VagaDetalhe" component={VagaDetalhe} options={{ title: "Vaga" }} />
+    <Stack.Screen name="FormularioCandidatura" component={FormularioCandidatura} options={{ title: "Revisar candidatura" }} />
     <Stack.Screen name="Candidatura" component={CandidaturaDetalhe} options={{ title: "Sua candidatura" }} />
   </>
 );

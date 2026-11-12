@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
   empresa: { ...font.small, fontSize: 14, marginTop: 2 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   rodape: { flexDirection: "row", alignItems: "center", gap: 6 },
-  meta: { ...font.small },
-  urgente: { color: colors.warning, fontWeight: "700" },
+  meta: { ...font.small, flexShrink: 1 },
+  urgente: { color: colors.warningText, fontWeight: "700" },
 });

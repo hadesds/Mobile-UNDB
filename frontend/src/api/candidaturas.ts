@@ -10,8 +10,6 @@ export const buscarCandidatura = (id: number) => request<Candidatura>(`/candidat
  * Cria a candidatura; o servidor já devolve a primeira análise.
  * `respostas` = { chave: valor } do formulário (buscarFormulario). Em erro 400,
  * o corpo vem como { respostas: { chave: "mensagem" } } para marcar cada campo.
- * TODO(Ana Vitória): passar as respostas da tela nova; sem elas o backend ainda
- * aceita (modo de transição), mas não exige os campos obrigatórios da vaga.
  */
 export const candidatar = (vaga: number, respostas?: RespostasFormulario) =>
   request<Candidatura>("/candidaturas/", {

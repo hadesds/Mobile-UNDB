@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   meta: { ...font.small, fontSize: 14, marginTop: 2 },
   secao: { paddingVertical: spacing.sm },
   secaoTitulo: { ...font.h3 },
-  privTopo: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  privTopo: { alignItems: "flex-start", gap: spacing.sm },
   termo: { ...font.body, fontSize: 14, lineHeight: 21, color: colors.muted, fontStyle: "italic" },
   dado: {
     flexDirection: "row",
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   dadoRotulo: { ...font.body, color: colors.muted, flex: 1 },
-  dadoValor: { ...font.body, fontWeight: "600" },
+  dadoValor: { ...font.body, fontWeight: "600", flex: 1, textAlign: "right" },
   rodape: { ...font.tiny, textAlign: "center", marginTop: spacing.lg, lineHeight: 18 },
   folhaTexto: { ...font.body, color: colors.muted },
 });

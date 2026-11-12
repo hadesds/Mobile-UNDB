@@ -7,8 +7,7 @@ import { Carregando } from "../components/Layout/Carregando";
 import { Tela } from "../components/Layout/Tela";
 import { animarLayout } from "../components/Movimento/Expansivel";
 import { Surgir } from "../components/Movimento/Surgir";
-import { Avatar, Botao, Cartao, Chip, Folha, Icone, NomeIcone, useAviso } from "../components/Ui";
-import { FolhaConfirmacao } from "../components/vagas/FolhaConfirmacao";
+import { Avatar, Botao, Cartao, Chip, Folha, Icone, NomeIcone } from "../components/Ui";
 import { ListaRequisitos } from "../components/vagas/ListaRequisitos";
 import { colors, font, spacing } from "../constants/theme";
 import { useRecurso } from "../hooks/useRecurso";
@@ -33,7 +32,7 @@ function Fato({ icone, rotulo, valor, destaque }: { icone: NomeIcone; rotulo: st
       <Icone nome={icone} tamanho={18} cor={destaque ? colors.warning : colors.muted} />
       <View style={{ flex: 1 }}>
         <Text style={styles.fatoRotulo}>{rotulo}</Text>
-        <Text style={[styles.fatoValor, destaque && { color: colors.warning }]}>{valor}</Text>
+        <Text style={[styles.fatoValor, destaque && { color: colors.warningText }]}>{valor}</Text>
       </View>
     </View>
   );
@@ -43,10 +42,7 @@ export default function VagaDetalhe({ route, navigation }: Props) {
   const { id } = route.params;
   const { dados: vaga, erro, recarregar } = useRecurso(() => buscarVaga(id), [id]);
   const candidaturas = useCandidaturas();
-  const avisar = useAviso();
   const reduzir = useReduzirMovimento();
-  const [confirmando, setConfirmando] = useState(false);
-  const [enviando, setEnviando] = useState(false);
   const [requisitosAbertos, setRequisitosAbertos] = useState(false);
   const [descricaoAberta, setDescricaoAberta] = useState(false);
 
@@ -56,21 +52,6 @@ export default function VagaDetalhe({ route, navigation }: Props) {
   const prazo = rotuloPrazo(vaga.prazo);
   const longa = vaga.descricao.length > LIMITE_DESCRICAO;
   const competencias = [...vaga.requisitos_competencia].sort((a, b) => Number(b.obrigatorio) - Number(a.obrigatorio));
-
-  async function onConfirmar() {
-    setEnviando(true);
-    try {
-      const c = await candidaturas.candidatar(vaga!.id);
-      setConfirmando(false);
-      avisar("Candidatura enviada ao TEIA");
-      navigation.navigate("Candidatura", { id: c.id, recemCriada: true });
-    } catch (e) {
-      setConfirmando(false);
-      avisar(e instanceof Error ? e.message : "Não foi possível enviar a candidatura.", "erro");
-    } finally {
-      setEnviando(false);
-    }
-  }
 
   return (
     <>
@@ -84,7 +65,11 @@ export default function VagaDetalhe({ route, navigation }: Props) {
             />
           ) : (
             <>
-              <Botao titulo="Analisar e me candidatar" icone="enviar" onPress={() => setConfirmando(true)} />
+              <Botao
+                titulo="Analisar e me candidatar"
+                icone="enviar"
+                onPress={() => navigation.navigate("FormularioCandidatura", { id: vaga.id })}
+              />
               <Text style={styles.nota}>Você revisa o que acontece antes de enviar.</Text>
             </>
           )
@@ -108,7 +93,7 @@ export default function VagaDetalhe({ route, navigation }: Props) {
         <Surgir indice={1}>
           <Cartao style={styles.fatos}>
             <Fato icone="calendario" rotulo="Inscrições" valor={prazo.texto} destaque={prazo.urgente} />
-            <View style={styles.divisorVertical} />
+            <View style={styles.divisor} />
             <Fato
               icone="formacao"
               rotulo="Semestre mínimo"
@@ -130,6 +115,8 @@ export default function VagaDetalhe({ route, navigation }: Props) {
                   setDescricaoAberta((v) => !v);
                 }}
                 accessibilityRole="button"
+                accessibilityState={{ expanded: descricaoAberta }}
+                style={styles.expandir}
                 hitSlop={8}
               >
                 <Text style={styles.link}>{descricaoAberta ? "Mostrar menos" : "Ler mais"}</Text>
@@ -183,14 +170,6 @@ export default function VagaDetalhe({ route, navigation }: Props) {
       >
         <ListaRequisitos vaga={vaga} />
       </Folha>
-
-      <FolhaConfirmacao
-        visivel={confirmando}
-        tituloVaga={`${vaga.titulo} · ${vaga.empresa}`}
-        enviando={enviando}
-        onCancelar={() => !enviando && setConfirmando(false)}
-        onConfirmar={onConfirmar}
-      />
     </>
   );
 }
@@ -198,18 +177,19 @@ export default function VagaDetalhe({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   topo: { gap: spacing.smd, paddingTop: spacing.sm },
   empresa: { flexDirection: "row", alignItems: "center", gap: spacing.smd },
-  empresaNome: { ...font.body, color: colors.muted, fontWeight: "600" },
-  titulo: { ...font.title, fontSize: 26, lineHeight: 32 },
+  empresaNome: { ...font.body, color: colors.muted, fontWeight: "600", flex: 1 },
+  titulo: { ...font.title },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  fatos: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.smd },
-  fato: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  fatos: { gap: spacing.smd },
+  fato: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   fatoRotulo: { ...font.tiny },
   fatoValor: { ...font.h3, fontSize: 15 },
-  divisorVertical: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", backgroundColor: colors.border, marginHorizontal: spacing.smd },
+  divisor: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   secao: { gap: spacing.sm, marginTop: spacing.sm },
   secaoTitulo: { ...font.h2 },
   descricao: { ...font.body, lineHeight: 23 },
   link: { color: colors.primary, fontWeight: "700", fontSize: 15 },
+  expandir: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   idiomas: { ...font.body, color: colors.muted },
   legenda: { flexDirection: "row", alignItems: "center", gap: 6 },
   ponto: { width: 8, height: 8, borderRadius: 4 },
