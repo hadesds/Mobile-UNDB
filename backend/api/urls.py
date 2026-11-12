@@ -38,6 +38,7 @@ urlpatterns = [
     path("me/", views.MeView.as_view(), name="me"),
     path("me/consentimento/", views.ConsentimentoView.as_view(), name="me-consentimento"),
     path("me/perfil/", views.PerfilView.as_view(), name="me-perfil"),
+    path("me/curriculo/pdf/", views.CurriculoPDFView.as_view(), name="me-curriculo-pdf"),
     path("me/perfil/arquivo/", views.ArquivoCurriculoView.as_view(), name="me-perfil-arquivo"),
     path(
         "me/perfil/arquivo/original/",

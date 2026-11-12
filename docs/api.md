@@ -30,7 +30,27 @@ e-mail restrito a `ALUNO_EMAIL_DOMINIOS`; `aceite_lgpd` deve ser `true`.
 Cada aluno só enxerga e altera os próprios itens (outros ids retornam 404).
 Datas: `fim` não pode ser anterior a `inicio`. Competência e idioma não repetem.
 
-### Currículo em arquivo (PDF ou DOCX)
+### Exportar currículo em PDF
+
+Na aba **Currículo** do app, **Exportar currículo** permite escolher as seções e
+baixar um PDF com o perfil atual. No Android/iOS, abre o compartilhamento para
+salvar ou enviar o documento.
+
+`GET me/curriculo/pdf/` exige aluno autenticado e consentimento vigente. Retorna
+`application/pdf`, como download `curriculo.pdf`, com `Cache-Control: private, no-store`.
+O documento consulta o perfil atual a cada requisição e não é armazenado no servidor.
+A geração usa ReportLab (`reportlab` em `requirements.txt`), sem depender de
+armazenamento remoto. Nenhuma chave de storage é enviada ao app.
+
+Use `?secoes=formacoes,experiencias,competencias,idiomas,cursos` para escolher as
+seções. Sem o parâmetro, inclui todas; seções vazias são omitidas. Uma seleção vazia
+ou desconhecida retorna 400. Nome, e-mail, curso e período compõem o cabeçalho.
+Não recebe id de outro aluno nem inclui matrícula, notas de compatibilidade ou anexos.
+
+### Importar e revisar PDF ou DOCX
+
+Na aba **Currículo**, **Importar PDF ou Word** abre o seletor de arquivos e leva
+o aluno à revisão das sugestões antes de salvar os itens escolhidos no perfil.
 
 | Rota | Método | Notas |
 |---|---|---|
@@ -39,6 +59,13 @@ Datas: `fim` não pode ser anterior a `inicio`. Competência e idioma não repet
 | `me/perfil/arquivo/` | DELETE | apaga o registro e o arquivo guardado |
 | `me/perfil/arquivo/original/` | GET | o arquivo como foi enviado (`?baixar=1` para download) |
 | `me/perfil/importar/` | POST | `{formacoes, experiencias, competencias, idiomas, cursos}` com os campos de cada seção. Cria os válidos, ignora repetidos e devolve `{criados, ignorados, erros, perfil}` |
+
+O corpo de `importar/` aceita também `apagar_arquivo: true`. Após confirmar itens
+válidos ou já existentes, sem erros, apaga o original e o registro com o texto
+extraído. A resposta informa `arquivo_apagado`. Havendo erros parciais ou nenhuma
+seleção, mantém o arquivo para revisão. Para clientes antigos, o padrão da API é
+`false`; no app, a opção aparece marcada e pode ser desmarcada antes da confirmação.
+Isso não altera nem remove os dados confirmados do perfil.
 
 A extração é por regras, no próprio servidor (o arquivo não vai para serviços externos):
 títulos de seção usuais (Formação, Experiência, Projetos, Habilidades, Idiomas, Cursos,

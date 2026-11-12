@@ -18,6 +18,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from backend.compatibilidade import analisar
+from backend.exportacao_curriculo import SECOES as SECOES_PDF, gerar_pdf
 from backend.formulario_candidatura import (
     RespostasInvalidas,
     modelo_da_vaga,
@@ -252,6 +253,25 @@ def _leitura(arquivo: ArquivoCurriculo, perfil: PerfilCompetencias) -> dict:
     }
 
 
+class CurriculoPDFView(APIView):
+    permission_classes = [IsAlunoComConsentimento]
+
+    def get(self, request):
+        valores = request.query_params.getlist("secoes")
+        secoes = valores[0].split(",") if len(valores) == 1 else valores
+        if "secoes" not in request.query_params:
+            secoes = list(SECOES_PDF)
+        if not secoes or any(s not in SECOES_PDF for s in secoes):
+            return Response({"secoes": ["Escolha seções válidas: " + ", ".join(SECOES_PDF)]},
+                            status=status.HTTP_400_BAD_REQUEST)
+        perfil = _perfil_do_aluno(request.user)
+        resposta = FileResponse(gerar_pdf(perfil, secoes), as_attachment=True,
+                                filename="curriculo.pdf", content_type="application/pdf")
+        resposta["Cache-Control"] = "private, no-store"
+        resposta["X-Content-Type-Options"] = "nosniff"
+        return resposta
+
+
 class ArquivoCurriculoView(APIView):
     """Envia (POST multipart `arquivo`), lê (GET) ou apaga (DELETE) o currículo em arquivo.
 
@@ -344,6 +364,9 @@ class ImportarCurriculoView(APIView):
     def post(self, request):
         if not isinstance(request.data, dict):
             return Response({"detail": "Envie um objeto com as seções."}, status=status.HTTP_400_BAD_REQUEST)
+        apagar_arquivo = request.data.get("apagar_arquivo", False)
+        if not isinstance(apagar_arquivo, bool):
+            return Response({"apagar_arquivo": ["Envie true ou false."]}, status=status.HTTP_400_BAD_REQUEST)
         perfil = _perfil_do_aluno(request.user)
         criados = {secao: 0 for secao in self.SECOES}
         ignorados = 0
@@ -354,8 +377,11 @@ class ImportarCurriculoView(APIView):
             if not isinstance(itens, list):
                 erros.append({"secao": secao, "indice": None, "erros": {"detail": ["Envie uma lista."]}})
                 continue
+            if len(itens) > 100:
+                erros.append({"secao": secao, "indice": None, "erros": {"detail": ["Envie até 100 itens por seção."]}})
             for indice, item in enumerate(itens[:100]):
                 if not isinstance(item, dict):
+                    erros.append({"secao": secao, "indice": indice, "erros": {"detail": ["Envie um objeto."]}})
                     continue
                 if self._repetido(perfil, secao, item):
                     ignorados += 1
@@ -369,10 +395,15 @@ class ImportarCurriculoView(APIView):
                 criados[secao] += 1
 
         perfil.save(update_fields=["atualizado_em"])
+        arquivo_apagado = False
+        # Não eliminar a base da revisão enquanto houver itens inválidos.
+        if apagar_arquivo and not erros and (sum(criados.values()) or ignorados):
+            arquivo_apagado = bool(ArquivoCurriculo.objects.filter(perfil=perfil).delete()[0])
         return Response(
             {
                 "criados": criados,
                 "ignorados": ignorados,
+                "arquivo_apagado": arquivo_apagado,
                 "erros": erros,
                 "perfil": PerfilSerializer(perfil).data,
             },

@@ -1,6 +1,7 @@
 """T0 (faixas/justificativa) e T2 (modelo de currículo por vaga)."""
 
 from datetime import timedelta
+from io import StringIO
 
 from django.core.management import call_command
 from django.urls import reverse
@@ -190,8 +191,8 @@ class FormularioTests(BaseAPITest):
 
 class SeedModelosTests(BaseAPITest):
     def test_seed_cria_modelo_para_as_6_vagas_e_e_idempotente(self):
-        call_command("seed", stdout=open("/dev/null", "w"))
-        call_command("seed", stdout=open("/dev/null", "w"))
+        call_command("seed", stdout=StringIO())
+        call_command("seed", stdout=StringIO())
         self.assertEqual(ModeloCurriculo.objects.count(), len(D.VAGAS))
         for v in D.VAGAS:
             modelo = ModeloCurriculo.objects.get(vaga__titulo=v["titulo"])

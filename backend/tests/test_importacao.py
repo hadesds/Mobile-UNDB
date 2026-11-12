@@ -295,6 +295,39 @@ class ImportacaoAPITests(BaseAPITest):
         marcadas = {c["competencia_nome"]: c["ja_existe"] for c in r.data["sugestoes"]["competencias"]}
         self.assertEqual(marcadas, {"Python": True, "SQL": False})
 
+    def test_confirmacao_pode_apagar_original_e_texto(self):
+        self.enviar(_docx(["Habilidades", "Python, SQL"]))
+        arquivo = ArquivoCurriculo.objects.get().arquivo
+        storage, nome = arquivo.storage, arquivo.name
+        r = self.client.post("/api/v1/me/perfil/importar/", {
+            "competencias": [{"competencia": self.python.id}], "apagar_arquivo": True,
+        }, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(r.data["arquivo_apagado"])
+        self.assertFalse(ArquivoCurriculo.objects.exists())
+        self.assertFalse(storage.exists(nome))
+        self.assertTrue(self.ana.aluno.perfil_competencias.competencias.exists())
+        self.assertIsNone(r.data["perfil"]["arquivo"])
+
+    def test_erros_parciais_preservam_arquivo_para_revisao(self):
+        self.enviar(_docx(["Habilidades", "Python, SQL"]))
+        r = self.client.post("/api/v1/me/perfil/importar/", {
+            "competencias": [{"competencia": self.python.id}],
+            "formacoes": [{"curso": "Sem instituição"}], "apagar_arquivo": True,
+        }, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertFalse(r.data["arquivo_apagado"])
+        self.assertTrue(ArquivoCurriculo.objects.exists())
+        self.assertTrue(r.data["erros"])
+
+    def test_opcao_exige_booleano_e_corpo_vazio_nao_apaga(self):
+        self.enviar(_docx(["Habilidades", "Python, SQL"]))
+        self.assertEqual(self.client.post("/api/v1/me/perfil/importar/",
+            {"apagar_arquivo": "true"}, format="json").status_code, 400)
+        r = self.client.post("/api/v1/me/perfil/importar/", {"apagar_arquivo": True}, format="json")
+        self.assertFalse(r.data["arquivo_apagado"])
+        self.assertTrue(ArquivoCurriculo.objects.exists())
+
 
 class ExtracaoFormatosTests(TestCase):
     """Variações comuns: PDF sem linhas em branco, ano solitário, complemento de curso."""

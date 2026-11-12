@@ -247,6 +247,7 @@ export type SugestoesCurriculo = {
 export type LeituraCurriculo = { arquivo: ArquivoCurriculo; texto: string; sugestoes: SugestoesCurriculo };
 
 export type ResultadoImportacao = {
+  arquivo_apagado: boolean;
   criados: Record<SecaoCurriculo, number>;
   ignorados: number;
   erros: { secao: SecaoCurriculo; indice: number | null; erros: Record<string, unknown> }[];

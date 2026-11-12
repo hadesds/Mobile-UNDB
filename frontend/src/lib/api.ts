@@ -14,6 +14,7 @@ type Options = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   auth?: boolean; // envia o token (padrão: true)
+  resposta?: "json" | "arquivo";
 };
 
 // O token fica aqui em memória; o AuthProvider (lib/auth.tsx) o mantém atualizado.
@@ -42,7 +43,7 @@ function mensagemDeErro(data: unknown, status: number): string {
 }
 
 export async function request<T>(path: string, opts: Options = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: opts.resposta === "arquivo" ? "application/pdf, application/json" : "application/json" };
   // FormData (envio de arquivo) leva o próprio Content-Type com o boundary.
   const formulario = typeof FormData !== "undefined" && opts.body instanceof FormData;
   if (opts.body !== undefined && !formulario) headers["Content-Type"] = "application/json";
@@ -62,6 +63,12 @@ export async function request<T>(path: string, opts: Options = {}): Promise<T> {
   }
 
   if (res.status === 204) return undefined as T;
+  if (res.ok && opts.resposta === "arquivo") {
+    if (!res.headers.get("Content-Type")?.includes("application/pdf")) {
+      throw new ApiError(res.status, null, "O servidor não devolveu um PDF. Tente novamente.");
+    }
+    return await res.arrayBuffer() as T;
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401 && opts.auth !== false) aoExpirar?.();

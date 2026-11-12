@@ -1,4 +1,5 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
+import { Platform } from "react-native";
 
 import { colors } from "../../constants/theme";
 
@@ -240,8 +241,10 @@ export function Icone({ nome, tamanho = 22, cor = colors.text, espessura = 1.8 }
       strokeWidth={espessura}
       strokeLinecap="round"
       strokeLinejoin="round"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      {...(Platform.OS === "web" ? { "aria-hidden": true } : {
+        accessibilityElementsHidden: true,
+        importantForAccessibility: "no-hide-descendants" as const,
+      })}
     >
       {DESENHOS[nome]}
     </Svg>

@@ -3,6 +3,9 @@ import type { Competencia, Curriculo, LeituraCurriculo, Paginado, ResultadoImpor
 
 export const buscarCurriculo = () => request<Curriculo>("/me/perfil/");
 
+export const baixarCurriculoPDF = (secoes: SecaoCurriculo[]) =>
+  request<ArrayBuffer>(`/me/curriculo/pdf/?secoes=${encodeURIComponent(secoes.join(","))}`, { resposta: "arquivo" });
+
 export function salvarItem(secao: SecaoCurriculo, dados: Record<string, unknown>, id?: number) {
   return id
     ? request(`/me/perfil/${secao}/${id}/`, { method: "PATCH", body: dados })
@@ -35,5 +38,5 @@ export const buscarLeitura = () => request<LeituraCurriculo>("/me/perfil/arquivo
 
 export const removerArquivo = () => request<void>("/me/perfil/arquivo/", { method: "DELETE" });
 
-export const importarSugestoes = (dados: Partial<Record<SecaoCurriculo, Record<string, unknown>[]>>) =>
-  request<ResultadoImportacao>("/me/perfil/importar/", { method: "POST", body: dados });
+export const importarSugestoes = (dados: Partial<Record<SecaoCurriculo, Record<string, unknown>[]>>, apagarArquivo = true) =>
+  request<ResultadoImportacao>("/me/perfil/importar/", { method: "POST", body: { ...dados, apagar_arquivo: apagarArquivo } });
