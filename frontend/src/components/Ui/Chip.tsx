@@ -8,7 +8,7 @@ export type Tom = "marca" | "sucesso" | "alerta" | "neutro" | "perigo";
 export const TONS: Record<Tom, { bg: string; fg: string }> = {
   marca: { bg: colors.primarySoft, fg: colors.primaryDark },
   sucesso: { bg: colors.successSoft, fg: colors.successText },
-  alerta: { bg: colors.warningSoft, fg: colors.warning },
+  alerta: { bg: colors.warningSoft, fg: colors.warningText },
   neutro: { bg: colors.neutralSoft, fg: colors.muted },
   perigo: { bg: colors.dangerSoft, fg: colors.danger },
 };
@@ -60,13 +60,16 @@ export function Chip({ texto, tom = "neutro", icone, selecionado, onPress, remov
 
 const styles = StyleSheet.create({
   chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     alignSelf: "flex-start",
     flexShrink: 1, // rótulo longo quebra linha em vez de sair da tela
     borderRadius: radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  tocavel: { minHeight: 36, paddingHorizontal: 14 },
-  contorno: { borderWidth: 1, borderColor: colors.border },
+  tocavel: { minHeight: 44, paddingHorizontal: 14, justifyContent: "center" },
+  contorno: { borderWidth: 1, borderColor: colors.borderStrong },
   texto: { fontSize: 13, fontWeight: "700", flexShrink: 1 },
 });

@@ -57,7 +57,7 @@ export function ResumoFaixa({ valor, rotulo, acao, tom = "sucesso", onPress }: F
       style={({ pressed }) => [styles.faixa, { backgroundColor: t.fundo }, pressed && { opacity: 0.85 }]}
     >
       <Text style={[styles.valor, { color: t.numero }]}>{valor}</Text>
-      <Text style={[styles.rotulo, { flex: 1 }]}>{rotulo}</Text>
+      <Text style={[styles.rotulo, { flex: 1, minWidth: 100 }]}>{rotulo}</Text>
       <View style={[styles.botaoFaixa, { backgroundColor: t.numero }]}>
         <Text style={styles.botaoFaixaTexto}>{acao}</Text>
       </View>
@@ -72,10 +72,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: 4,
   },
-  valor: { fontSize: 30, fontWeight: "800", lineHeight: 34 },
+  valor: { fontSize: 30, fontWeight: "800", lineHeight: 34, fontVariant: ["tabular-nums"] },
   rotulo: { fontSize: 14, color: colors.text, lineHeight: 19 },
   faixa: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: spacing.sm + 4,
     borderRadius: radius.md,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   botaoFaixa: {
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: "center",
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,

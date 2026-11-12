@@ -6,6 +6,8 @@ export const colors = {
   primaryDark: "#A3003D",
   primarySoft: "#FCE7EE",
   primaryText: "#FFFFFF",
+  primaryDecoration: "rgba(255,255,255,0.18)",
+  primaryDecorationSoft: "rgba(255,255,255,0.12)",
 
   background: "#F4F5F7",
   surface: "#FFFFFF",

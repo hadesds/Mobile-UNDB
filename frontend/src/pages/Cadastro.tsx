@@ -225,7 +225,7 @@ export default function Cadastro({ navigation }: Props) {
                 {cursos.erro ? (
                   <View style={styles.linhaErro}>
                     <Text style={styles.erro}>{cursos.erro}</Text>
-                    <Pressable onPress={cursos.recarregar} accessibilityRole="button" hitSlop={8}>
+                    <Pressable onPress={cursos.recarregar} accessibilityRole="button" style={styles.tentar}>
                       <Text style={styles.link}>Tentar de novo</Text>
                     </Pressable>
                   </View>
@@ -276,9 +276,9 @@ export default function Cadastro({ navigation }: Props) {
           )}
 
           {!!erroGeral && (
-            <View style={styles.linhaErro}>
+            <View style={styles.linhaErro} accessibilityLiveRegion="polite">
               <Icone nome="alerta" tamanho={16} cor={colors.danger} />
-              <Text style={[styles.erro, { flex: 1 }]}>{erroGeral}</Text>
+              <Text style={styles.erro}>{erroGeral}</Text>
             </View>
           )}
         </Surgir>
@@ -312,6 +312,7 @@ function BotaoPasso({ icone, rotulo, desabilitado, onPress }: {
       disabled={desabilitado}
       accessibilityRole="button"
       accessibilityLabel={rotulo}
+      accessibilityState={{ disabled: desabilitado }}
       style={({ pressed }) => [styles.passoBotao, desabilitado && { opacity: 0.35 }, pressed && { opacity: 0.6 }]}
     >
       <Icone nome={icone} tamanho={20} cor={colors.primaryDark} espessura={2.2} />
@@ -320,7 +321,7 @@ function BotaoPasso({ icone, rotulo, desabilitado, onPress }: {
 }
 
 const styles = StyleSheet.create({
-  conteudo: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
+  conteudo: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
   progresso: { flexDirection: "row", gap: 6 },
   segmento: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
   segmentoAtivo: { backgroundColor: colors.primary },
@@ -331,7 +332,8 @@ const styles = StyleSheet.create({
   rotulo: { fontSize: 14, fontWeight: "600", color: colors.text },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   ajuda: { color: colors.muted, fontSize: 14 },
-  linhaErro: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  linhaErro: { gap: spacing.sm },
+  tentar: { minHeight: 44, justifyContent: "center", alignSelf: "flex-start" },
   erro: { color: colors.danger, fontSize: 13, lineHeight: 18 },
   link: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   contador: {

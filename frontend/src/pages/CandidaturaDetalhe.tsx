@@ -1,13 +1,13 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { buscarCandidatura, reanalisar } from "../api/candidaturas";
 import { Carregando } from "../components/Layout/Carregando";
 import { Tela } from "../components/Layout/Tela";
 import { Expansivel } from "../components/Movimento/Expansivel";
 import { Surgir } from "../components/Movimento/Surgir";
-import { Avatar, Botao, Cartao, Chip, Icone, useAviso } from "../components/Ui";
+import { Avatar, Botao, Cartao, Chip, Icone, Vazio, useAviso } from "../components/Ui";
 import { Acompanhamento } from "../components/candidaturas/Acompanhamento";
 import { IndicadorCompatibilidade } from "../components/vagas/IndicadorCompatibilidade";
 import { LinhaRequisito } from "../components/vagas/LinhaRequisito";
@@ -56,8 +56,10 @@ function Grupo({ titulo, total, ajuda, aberto, children }: {
 }
 
 export default function CandidaturaDetalhe({ route, navigation }: Props) {
-  const { id, recemCriada } = route.params;
-  const { dados: c, setDados, erro, carregando, recarregar } = useRecurso(() => buscarCandidatura(id), [id]);
+  const { width, fontScale } = useWindowDimensions();
+  const empilhar = width < 360 || fontScale > 1.2;
+  const { id, recemCriada, resultado } = route.params;
+  const { dados: c, setDados, erro, carregando, recarregar } = useRecurso(() => buscarCandidatura(id), [id], resultado?.id === id ? resultado : null);
   const { sincronizar } = useCandidaturas();
   const avisar = useAviso();
   const [atualizando, setAtualizando] = useState(false);
@@ -99,12 +101,12 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
       atualizando={carregando}
       onAtualizar={recarregar}
       rodape={
-        <View style={styles.acoes}>
+        <View style={[styles.acoes, empilhar && styles.empilhado]}>
           <Botao
             titulo="Atualizar"
             icone="atualizar"
             variante="contorno"
-            style={{ flex: 1 }}
+            style={!empilhar && { flex: 1 }}
             carregando={atualizando}
             onPress={onReanalisar}
             rotuloAcessivel="Atualizar análise com o currículo atual"
@@ -112,7 +114,7 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
           <Botao
             titulo="Melhorar currículo"
             icone="curriculo"
-            style={{ flex: 1.4 }}
+            style={!empilhar && { flex: 1.4 }}
             onPress={() => navigation.getParent()?.navigate("CurriculoTab")}
           />
         </View>
@@ -121,7 +123,7 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
       {recemCriada && (
         <Surgir style={styles.sucesso}>
           <View style={styles.sucessoIcone}>
-            <Icone nome="check" tamanho={18} cor="#FFFFFF" espessura={2.6} />
+            <Icone nome="check" tamanho={18} cor={colors.primaryText} espessura={2.6} />
           </View>
           <Text style={styles.sucessoTexto}>
             Candidatura enviada. A equipe do TEIA vai avaliar e decidir os encaminhamentos.
@@ -162,12 +164,12 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
       {a ? (
         <>
           <Cartao style={{ gap: spacing.md }}>
-            <View style={styles.resumo}>
+            <View style={[styles.resumo, empilhar && styles.empilhado]}>
               <IndicadorCompatibilidade
                 percentual={a.score}
                 legenda={`${encontrados.length} de ${itens.length}`}
               />
-              <View style={{ flex: 1, gap: spacing.sm }}>
+              <View style={[{ gap: spacing.sm }, !empilhar && { flex: 1 }]}>
                 <Chip texto={ROTULO_FAIXA[a.faixa]} tom={TOM_FAIXA[a.faixa]} />
                 <Text style={styles.resumoTexto}>
                   {encontrados.length} de {itens.length} requisitos com evidência no seu currículo
@@ -235,7 +237,7 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
           )}
         </>
       ) : (
-        <Text style={styles.explicacao}>A análise desta candidatura ainda não foi gerada.</Text>
+        <Vazio icone="curriculo" titulo="Análise pendente" texto="A análise desta candidatura ainda não foi gerada." />
       )}
     </Tela>
   );
@@ -243,6 +245,7 @@ export default function CandidaturaDetalhe({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   acoes: { flexDirection: "row", gap: spacing.smd },
+  empilhado: { flexDirection: "column" },
   sucesso: {
     flexDirection: "row",
     alignItems: "center",
@@ -263,7 +266,7 @@ const styles = StyleSheet.create({
   vaga: { flexDirection: "row", alignItems: "center", gap: spacing.smd },
   vagaTitulo: { ...font.h3 },
   meta: { ...font.small, marginTop: 2 },
-  statusLinha: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  statusLinha: { alignItems: "flex-start", gap: spacing.sm },
   rotuloPequeno: { ...font.h3 },
   resumo: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   resumoTexto: { ...font.h3, fontSize: 16, lineHeight: 22 },
@@ -272,7 +275,7 @@ const styles = StyleSheet.create({
   link: { color: colors.primary, fontWeight: "700", fontSize: 15 },
   grupo: { paddingVertical: spacing.sm },
   grupoTopo: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  grupoTitulo: { ...font.h3 },
+  grupoTitulo: { ...font.h3, flexShrink: 1 },
   contador: {
     minWidth: 24,
     height: 24,
@@ -282,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  contadorTexto: { fontSize: 13, fontWeight: "800", color: colors.muted },
+  contadorTexto: { fontSize: 13, fontWeight: "800", color: colors.muted, fontVariant: ["tabular-nums"] },
   ajuda: { ...font.small, marginBottom: spacing.xs },
   historico: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm },
   historicoDivisor: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },

@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import * as api from "../api/candidaturas";
-import type { Candidatura, CandidaturaResumo } from "../types";
+import type { Candidatura, CandidaturaResumo, RespostasFormulario } from "../types";
 import { useAuth } from "./auth";
 
 type Valor = {
@@ -12,7 +12,7 @@ type Valor = {
   recarregar: (opcoes?: { silencioso?: boolean }) => Promise<void>;
   /** Candidatura da vaga, se o aluno já se candidatou. */
   daVaga: (vagaId: number) => CandidaturaResumo | undefined;
-  candidatar: (vagaId: number) => Promise<Candidatura>;
+  candidatar: (vagaId: number, respostas: RespostasFormulario) => Promise<Candidatura>;
   /** Atualiza o resumo na lista depois de ver/reanalisar o detalhe. */
   sincronizar: (c: Candidatura) => void;
 };
@@ -71,8 +71,8 @@ export function CandidaturasProvider({ children }: { children: ReactNode }) {
       carregando,
       recarregar,
       daVaga: (vagaId) => lista?.find((c) => c.vaga.id === vagaId),
-      candidatar: async (vagaId) => {
-        const c = await api.candidatar(vagaId);
+      candidatar: async (vagaId, respostas) => {
+        const c = await api.candidatar(vagaId, respostas);
         sincronizar(c);
         return c;
       },

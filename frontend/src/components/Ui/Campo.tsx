@@ -39,11 +39,12 @@ export const Campo = forwardRef<TextInputInstance, Props>(function Campo(
       >
         <TextInput
           ref={ref}
-          placeholderTextColor={colors.subtle}
+          placeholderTextColor={colors.muted}
           selectionColor={colors.primary}
           cursorColor={colors.primary}
           secureTextEntry={senha && oculto}
           accessibilityLabel={rotulo}
+          accessibilityState={props.editable === false ? { disabled: true } : undefined}
           accessibilityHint={erro ?? ajuda}
           onFocus={(e) => {
             setFoco(true);
@@ -69,7 +70,7 @@ export const Campo = forwardRef<TextInputInstance, Props>(function Campo(
         )}
       </View>
       {erro ? (
-        <View style={styles.linhaErro}>
+        <View style={styles.linhaErro} accessibilityLiveRegion="polite">
           <Icone nome="alerta" tamanho={14} cor={colors.danger} espessura={2} />
           <Text style={styles.erro}>{erro}</Text>
         </View>
@@ -96,12 +97,14 @@ const styles = StyleSheet.create({
   caixaErro: { borderColor: colors.danger },
   input: {
     flex: 1,
+    minWidth: 0,
     alignSelf: "stretch",
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.smd,
     fontSize: 16,
     color: colors.text,
   },
-  olho: { paddingHorizontal: spacing.smd, alignSelf: "stretch", justifyContent: "center" },
+  olho: { minWidth: 44, minHeight: 44, paddingHorizontal: spacing.smd, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   linhaErro: { flexDirection: "row", alignItems: "center", gap: 6 },
   erro: { flex: 1, color: colors.danger, fontSize: 13, lineHeight: 18 },
   ajuda: { color: colors.muted, fontSize: 13, lineHeight: 18 },
