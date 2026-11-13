@@ -635,18 +635,30 @@ class RespostaCandidaturaSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+def _certificados_escolhidos(candidatura) -> list[dict]:
+    """Certificados que o aluno apresentou nesta candidatura (sem o arquivo)."""
+    return CertificadoSerializer(
+        [e.certificado for e in candidatura.certificados_escolhidos.all()], many=True
+    ).data
+
+
 class CandidaturaDetalheSerializer(CandidaturaListaSerializer):
     historico = serializers.SerializerMethodField()
     encaminhada_em = serializers.SerializerMethodField()
     respostas = RespostaCandidaturaSerializer(many=True, read_only=True)
+    certificados = serializers.SerializerMethodField()
 
     class Meta(CandidaturaListaSerializer.Meta):
         fields = CandidaturaListaSerializer.Meta.fields + [
             "historico",
             "encaminhada_em",
             "respostas",
+            "certificados",
         ]
         read_only_fields = fields
+
+    def get_certificados(self, candidatura):
+        return _certificados_escolhidos(candidatura)
 
     def get_analise(self, candidatura):
         ultima = _ultima_analise(candidatura)
@@ -668,6 +680,21 @@ class NovaCandidaturaSerializer(serializers.Serializer):
         child=serializers.CharField(allow_blank=True, trim_whitespace=True),
         required=False,
     )
+    # IDs de me/certificados/ que o aluno quer apresentar nesta candidatura.
+    certificados = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, allow_empty=True
+    )
+
+    def validate_certificados(self, ids):
+        ids = list(dict.fromkeys(ids))  # sem repetidos, mantendo a ordem
+        meus = set(
+            Certificado.objects.filter(aluno=self.context["aluno"], pk__in=ids).values_list("pk", flat=True)
+        )
+        for i in ids:
+            if i not in meus:
+                # Mesma mensagem para "não existe" e "é de outro aluno": não revela nada.
+                raise serializers.ValidationError(f"Certificado {i} não é seu.")
+        return ids
 
     def validate_vaga(self, vaga):
         if not vaga.esta_aberta:
@@ -734,10 +761,19 @@ class CandidatoDetalheSerializer(CandidatoSerializer):
     curriculo = serializers.SerializerMethodField()
 
     respostas = serializers.SerializerMethodField()
+    certificados = serializers.SerializerMethodField()
 
     class Meta(CandidatoSerializer.Meta):
-        fields = CandidatoSerializer.Meta.fields + ["vaga", "historico", "curriculo", "respostas"]
+        fields = CandidatoSerializer.Meta.fields + [
+            "vaga", "historico", "curriculo", "respostas", "certificados",
+        ]
         read_only_fields = fields
+
+    def get_certificados(self, candidatura):
+        # Mesma regra do currículo: sem consentimento vigente, o TEIA não vê.
+        if not candidatura.aluno.consentimento_vigente:
+            return None
+        return _certificados_escolhidos(candidatura)
 
     def get_respostas(self, candidatura):
         # Mesma regra do currículo: sem consentimento vigente, o TEIA não vê.

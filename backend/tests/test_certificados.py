@@ -122,3 +122,85 @@ class CamadaDeImportacaoTests(CertificadoBase):
         c = importar_lote(aluno, [novo, novo], Certificado.Origem.UNDB)
         self.assertEqual([x.origem for x in c], ["undb", "undb"])
         self.assertEqual(cadastrar(aluno, novo).origem, "upload")
+
+
+class CandidaturaComCertificadosTests(CertificadoBase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from backend.models import Empresa, RequisitoCompetencia, Vaga
+
+        self.user = self.novo_aluno()
+        self.aluno = self.user.aluno
+        self.vaga = Vaga.objects.create(
+            empresa=Empresa.objects.create(nome="Empresa X"), gestor=self.gestor,
+            titulo="Estágio Python", tipo="estagio_nao_obrigatorio", modalidade="remoto",
+            status="aberta", prazo=timezone.localdate() + timedelta(days=10),
+        )
+        RequisitoCompetencia.objects.create(vaga=self.vaga, competencia=self.python)
+        self.cert = cadastrar(self.aluno, CertificadoNovo(titulo="Curso de Python", conteudo=PDF, nome_arquivo="a.pdf"))
+        self.cert2 = cadastrar(self.aluno, CertificadoNovo(titulo="Git e GitHub", conteudo=PDF, nome_arquivo="b.pdf"))
+        self.como(self.user)
+
+    def candidatar(self, **extra):
+        return self.client.post(reverse("candidatura-list"), {"vaga": self.vaga.id, **extra}, format="json")
+
+    def test_candidatura_guarda_os_certificados_escolhidos(self):
+        r = self.candidatar(certificados=[self.cert.id, self.cert2.id, self.cert.id])
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(sorted(c["id"] for c in r.data["certificados"]), sorted([self.cert.id, self.cert2.id]))
+        self.assertNotIn("arquivo", r.data["certificados"][0])
+        det = self.client.get(reverse("candidatura-detail", args=[r.data["id"]]))
+        self.assertEqual(len(det.data["certificados"]), 2)
+
+    def test_sem_certificados_continua_funcionando(self):
+        r = self.candidatar()
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.data["certificados"], [])
+
+    def test_certificado_de_outro_aluno_e_recusado_e_nada_e_gravado(self):
+        outro = self.novo_aluno("bia@aluno.undb.edu.br", "2026002").aluno
+        alheio = cadastrar(outro, CertificadoNovo(titulo="Dele", conteudo=PDF, nome_arquivo="c.pdf"))
+        r = self.candidatar(certificados=[self.cert.id, alheio.id])
+        self.assertEqual(r.status_code, 400)
+        self.assertIn(str(alheio.id), r.data["certificados"][0])
+        # inexistente dá a mesma resposta (não revela o que existe)
+        r2 = self.candidatar(certificados=[999999])
+        self.assertEqual(r2.status_code, 400)
+        from backend.models import Candidatura
+
+        self.assertFalse(Candidatura.objects.exists())
+
+    def test_apagar_certificado_tira_da_candidatura(self):
+        cid = self.candidatar(certificados=[self.cert.id]).data["id"]
+        self.client.delete(reverse("certificado-detail", args=[self.cert.id]))
+        det = self.client.get(reverse("candidatura-detail", args=[cid]))
+        self.assertEqual(det.data["certificados"], [])
+
+    def test_gestor_ve_certificados_escolhidos_e_baixa_so_eles(self):
+        cid = self.candidatar(certificados=[self.cert.id]).data["id"]
+        self.como(self.gestor.usuario)
+        r = self.client.get(reverse("gestor-candidatura-detail", args=[cid]))
+        self.assertEqual([c["id"] for c in r.data["certificados"]], [self.cert.id])
+
+        arq = reverse("gestor-candidatura-certificado-arquivo", args=[cid, self.cert.id])
+        self.assertEqual(self.client.get(arq).status_code, 200)
+        # o certificado que o aluno NÃO apresentou fica fora do alcance do gestor
+        fora = reverse("gestor-candidatura-certificado-arquivo", args=[cid, self.cert2.id])
+        self.assertEqual(self.client.get(fora).status_code, 404)
+
+    def test_consentimento_revogado_esconde_certificados_do_gestor(self):
+        cid = self.candidatar(certificados=[self.cert.id]).data["id"]
+        self.aluno.registrar_consentimento(False)
+        self.como(self.gestor.usuario)
+        r = self.client.get(reverse("gestor-candidatura-detail", args=[cid]))
+        self.assertIsNone(r.data["certificados"])
+        arq = reverse("gestor-candidatura-certificado-arquivo", args=[cid, self.cert.id])
+        self.assertEqual(self.client.get(arq).status_code, 404)
+
+    def test_aluno_nao_usa_endpoint_do_gestor(self):
+        cid = self.candidatar(certificados=[self.cert.id]).data["id"]
+        arq = reverse("gestor-candidatura-certificado-arquivo", args=[cid, self.cert.id])
+        self.assertEqual(self.client.get(arq).status_code, 403)
