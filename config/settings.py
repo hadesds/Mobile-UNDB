@@ -54,6 +54,7 @@ if not DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',  # tema do admin; precisa vir antes de django.contrib.admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -67,6 +68,15 @@ INSTALLED_APPS = [
     'backend',
     'solicitacoes',
 ]
+
+# Painel admin (django-unfold). Grupos e permissões: `python manage.py criar_grupos`.
+UNFOLD = {
+    "SITE_TITLE": "TEIA · Painel",
+    "SITE_HEADER": "TEIA",
+    "SITE_SUBHEADER": "Currículo Sob Medida",
+    "SITE_SYMBOL": "work",
+    "SHOW_VIEW_ON_SITE": False,
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

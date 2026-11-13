@@ -5,6 +5,8 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
+from unfold.admin import ModelAdmin, TabularInline
+
 from .forms import SolicitacaoForm, CompetenciaForm
 from .models import LinkEmpresa, SolicitacaoVaga, CompetenciaSolicitada, IdiomaSolicitado, PerguntaSolicitada
 from .services import gestor_autorizado, publicar
@@ -28,7 +30,7 @@ class GestorAdminMixin:
 
 
 @admin.register(LinkEmpresa)
-class LinkEmpresaAdmin(GestorAdminMixin, admin.ModelAdmin):
+class LinkEmpresaAdmin(GestorAdminMixin, ModelAdmin):
     """Somente consulta: links são gerados e revogados pelo app (o token aparece uma única vez)."""
 
     list_display = ["empresa", "token_prefixo", "criado_por", "expira_em", "revogado", "criado_em"]
@@ -61,25 +63,25 @@ class RequisitoInlineMixin:
         return gestor_autorizado(request.user)
 
 
-class CompetenciaInline(RequisitoInlineMixin, admin.TabularInline):
+class CompetenciaInline(RequisitoInlineMixin, TabularInline):
     model = CompetenciaSolicitada
     form = CompetenciaForm
     extra = 1
 
 
-class IdiomaInline(RequisitoInlineMixin, admin.TabularInline):
+class IdiomaInline(RequisitoInlineMixin, TabularInline):
     model = IdiomaSolicitado
     extra = 1
 
 
-class PerguntaInline(RequisitoInlineMixin, admin.TabularInline):
+class PerguntaInline(RequisitoInlineMixin, TabularInline):
     model = PerguntaSolicitada
     extra = 1
     max_num = 10
 
 
 @admin.register(SolicitacaoVaga)
-class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
+class SolicitacaoVagaAdmin(GestorAdminMixin, ModelAdmin):
     form = SolicitacaoForm
     list_display = ["titulo", "link", "status", "criada_em", "revisado_por"]
     list_filter = ["status"]
