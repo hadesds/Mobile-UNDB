@@ -76,11 +76,29 @@ def cadastrar(
         origem=origem,
     )
     certificado.arquivo.save(f"certificado{extensao}", ContentFile(novo.conteudo), save=False)
-    certificado.save()
+    try:
+        certificado.save()
+    except Exception:
+        certificado.arquivo.delete(save=False)  # sem registro no banco, o arquivo não fica órfão
+        raise
     return certificado
 
 
 def importar_lote(aluno: Aluno, novos: list[CertificadoNovo], origem: str) -> list[Certificado]:
-    """Cadastra vários de uma vez (tudo ou nada). Usado por futuras importações."""
-    with transaction.atomic():
-        return [cadastrar(aluno, n, origem) for n in novos]
+    """Cadastra vários de uma vez (tudo ou nada). Usado por futuras importações.
+
+    Confere o lote inteiro antes de gravar qualquer arquivo; se algo falhar depois
+    disso, a transação desfaz o banco e os arquivos já gravados são apagados.
+    """
+    for novo in novos:
+        tipo_de_conteudo(novo.nome_arquivo, novo.conteudo)
+    gravados: list[Certificado] = []
+    try:
+        with transaction.atomic():
+            for novo in novos:
+                gravados.append(cadastrar(aluno, novo, origem))
+    except Exception:
+        for c in gravados:
+            c.arquivo.delete(save=False)
+        raise
+    return gravados
