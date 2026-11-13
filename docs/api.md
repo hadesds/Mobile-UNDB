@@ -98,14 +98,54 @@ Vaga (gestor): `requisitos_competencia` e `requisitos_idioma` são aninhados; ao
 enviar a lista, ela **substitui** a anterior (campo omitido = mantém). Para
 `status = aberta` é preciso ao menos um requisito e prazo não vencido.
 
+## Certificados (aluno com termo LGPD vigente)
+
+Certificados e atividades complementares que o aluno anexa à candidatura. Por enquanto
+todos entram por **upload** (`origem: "upload"`); `"undb"` está reservado para uma
+importação oficial futura ([docs/certificados-undb.md](certificados-undb.md)). O arquivo
+fica no bucket privado, com nome aleatório, e **só sai pela API**.
+
+| Rota | Método | Notas |
+|---|---|---|
+| `me/certificados/` | GET | lista os certificados do próprio aluno, sem paginação |
+| `me/certificados/` | POST | **multipart** (não JSON): `titulo`, `arquivo` e, opcionais, `instituicao`, `carga_horaria` (horas), `data` (`AAAA-MM-DD`). 201 com o certificado |
+| `me/certificados/{id}/` | GET | um certificado |
+| `me/certificados/{id}/` | DELETE | 204. Apaga o registro e o arquivo, e o certificado sai das candidaturas que o usavam (as análises já feitas não mudam) |
+| `me/certificados/{id}/arquivo/` | GET | o arquivo como foi enviado; `?baixar=1` força o download |
+
+Certificado (nunca traz o arquivo, só metadados):
+
+```json
+{"id": 3, "titulo": "Curso de JS Avançado", "instituicao": "Alura", "carga_horaria": 20,
+ "data": "2026-08-10", "origem": "upload", "nome_original": "certificado.pdf",
+ "criado_em": "2026-11-13T14:02:11Z"}
+```
+
+Envio (exemplo em JS/RN com `FormData`):
+
+```ts
+const form = new FormData();
+form.append("titulo", "Curso de JS Avançado");
+form.append("instituicao", "Alura");
+form.append("carga_horaria", "20");
+form.append("data", "2026-08-10");
+form.append("arquivo", { uri, name: "certificado.pdf", type: "application/pdf" } as any);
+// não defina Content-Type à mão: o fetch coloca o boundary do multipart
+await fetch(`${API}/me/certificados/`, { method: "POST", headers: { Authorization: `Bearer ${access}` }, body: form });
+```
+
+Regras do arquivo: **PDF, JPG ou PNG**, até **5 MB**; a extensão precisa bater com o
+conteúdo. Erros vêm 400 por campo: `{"arquivo": ["Formato não aceito. Envie PDF, JPG ou PNG."]}`,
+`{"titulo": ["Informe o título do certificado."]}`. Sem termo LGPD vigente → 403.
+
 ## Candidaturas (aluno com termo LGPD vigente)
 
 | Rota | Método | Notas |
 |---|---|---|
 | `candidaturas/` | GET | candidaturas do próprio aluno, sem paginação. Filtro `?vaga=<id>` |
 | `vagas/{id}/formulario/` | GET | formulário de candidatura da vaga já preenchido com o perfil (ver abaixo) |
-| `candidaturas/` | POST | `{vaga, respostas?}` → 201 com a candidatura, as respostas e a primeira análise. Vaga precisa estar aberta; uma candidatura por vaga |
-| `candidaturas/{id}/` | GET | detalhe: `status`, `analise` (com `itens`), `historico`, `encaminhada_em`, `respostas` |
+| `candidaturas/` | POST | `{vaga, respostas?, certificados?}` → 201 com a candidatura, as respostas, os certificados e a primeira análise. Vaga precisa estar aberta; uma candidatura por vaga |
+| `candidaturas/{id}/` | GET | detalhe: `status`, `analise` (com `itens`), `historico`, `encaminhada_em`, `respostas`, `certificados` |
 | `candidaturas/{id}/reanalisar/` | POST | nova análise com o currículo atual; as anteriores ficam no `historico` |
 
 Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferente | nao_identificado), detalhe, obrigatorio`.
@@ -114,6 +154,29 @@ Cada item da análise: `requisito, categoria, tipo, status (encontrado | diferen
 A análise traz a nota (`score` + `faixa`), a `justificativa` (uma frase: quantos requisitos
 têm evidência e quais obrigatórios faltam) e o `feedback_texto` (o que revisar no currículo).
 O status da candidatura só muda por decisão do gestor.
+
+### Certificados na candidatura
+
+`POST candidaturas/` aceita a lista de IDs de `me/certificados/` que o aluno quer apresentar:
+
+```json
+{"vaga": 5, "respostas": {"nome": "Marina Costa"}, "certificados": [3, 7]}
+```
+
+- Opcional: sem `certificados` (ou `[]`) nada muda. Repetidos são ignorados.
+- Só vale certificado **do próprio aluno**. Erro: 400 `{"certificados": ["Certificado 7 não é seu."]}`
+  (a mesma mensagem para ID inexistente ou de outro aluno). Nada é gravado.
+- Os certificados são ligados **antes** da análise, então já contam na primeira nota.
+- A resposta e o `GET candidaturas/{id}/` trazem `certificados`: a lista dos escolhidos,
+  no mesmo formato acima (sem o arquivo).
+- `reanalisar/` reaproveita os certificados da candidatura.
+- **Regra de compatibilidade** (`regras-0.3`): um requisito de **competência** é comprovado se o
+  *título* de algum certificado escolhido cita o nome da competência **ou um sinônimo** dela,
+  como palavra inteira, sem diferenciar acento nem maiúscula. Exemplo: "Curso de JS Avançado"
+  comprova **JavaScript** (sinônimo "JS"); "Java Básico" **não** comprova JavaScript.
+  O item da análise fica `status: "encontrado"` com
+  `detalhe: "Evidência: Certificado: Curso de JS Avançado · Alura."`. Não vale para idioma,
+  curso nem semestre. Certificado não escolhido não conta.
 
 ### Formulário de candidatura ("cada vaga tem um currículo")
 
@@ -169,7 +232,8 @@ para cada uma das 6 vagas de demonstração (`seed_dados.MODELOS_CURRICULO`).
 |---|---|---|
 | `gestor/painel/` | GET | resumo do painel: candidaturas aguardando decisão por vaga, vagas abertas, encaminhadas em 30 dias |
 | `vagas/{id}/candidatos/` | GET | `{requisitos, contagem, candidatos}`. Candidatos ordenados por score (maior primeiro), **nunca filtrados por nota**. Filtro `?status=` |
-| `gestor/candidaturas/{id}/` | GET | candidato completo: vaga, análise, histórico, currículo e respostas do formulário (`curriculo` e `respostas` = `null` se o aluno revogou o termo LGPD) |
+| `gestor/candidaturas/{id}/` | GET | candidato completo: vaga, análise, histórico, currículo, respostas do formulário e `certificados` escolhidos (`curriculo`, `respostas` e `certificados` = `null` se o aluno revogou o termo LGPD) |
+| `gestor/candidaturas/{id}/certificados/{certificado_id}/arquivo/` | GET | o arquivo de um certificado **que o aluno apresentou nesta candidatura** (`?baixar=1` para download). 404 para qualquer outro, ou se o termo foi revogado |
 | `gestor/candidaturas/{id}/decidir/` | POST | `{status, observacao?}`. `encaminhada`/`em_processo` criam o encaminhamento; `analisada` desfaz e volta para a fila |
 
 ## Vagas enviadas por empresas (módulo `solicitacoes`)

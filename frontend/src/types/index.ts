@@ -102,6 +102,27 @@ export type Candidatura = Omit<CandidaturaResumo, "analise"> & {
   historico: AnaliseResumo[];
   encaminhada_em: string | null;
   respostas: RespostaCandidatura[];
+  /** Os que o aluno apresentou nesta candidatura. */
+  certificados: Certificado[];
+};
+
+// ---- Certificados (T1) ----------------------------------------------------
+// Formato combinado com o backend: ver docs/api.md, "Certificados".
+
+/** upload = o aluno enviou; undb = importado do banco de atividades (futuro). */
+export type OrigemCertificado = "upload" | "undb";
+
+export type Certificado = {
+  id: number;
+  titulo: string;
+  instituicao: string;
+  /** Em horas. */
+  carga_horaria: number | null;
+  /** "AAAA-MM-DD". */
+  data: string | null;
+  origem: OrigemCertificado;
+  nome_original: string;
+  criado_em: string;
 };
 
 // ---- Formulário de candidatura (modelo de currículo por vaga, T2) ---------
@@ -308,6 +329,8 @@ export type CandidatoDetalhe = Candidato & {
   vaga: VagaResumo;
   historico: AnaliseResumo[];
   curriculo: Curriculo | null;
+  /** null se o aluno revogou o termo LGPD. */
+  certificados: Certificado[] | null;
 };
 
 export type RequisitoOrdem = { requisito: string; tipo: string; obrigatorio: boolean };

@@ -13,6 +13,7 @@ from .curriculo import (
     SinonimoCompetencia,
     normalizar_termo,
 )
+from .certificados import CandidaturaCertificado, Certificado
 from .faculdade import Curso, Faculdade, NucleoCarreiras
 from .modelo_curriculo import CampoModelo, ModeloCurriculo, RespostaCandidatura
 from .usuarios import VERSAO_TERMO_LGPD, Aluno, Gestor, Usuario
@@ -57,4 +58,6 @@ __all__ = [
     "ModeloCurriculo",
     "CampoModelo",
     "RespostaCandidatura",
+    "Certificado",
+    "CandidaturaCertificado",
 ]

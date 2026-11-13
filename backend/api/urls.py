@@ -9,6 +9,7 @@ router.register("competencias", views.CompetenciaViewSet, basename="competencia"
 router.register("empresas", views.EmpresaViewSet, basename="empresa")
 router.register("vagas", views.VagaViewSet, basename="vaga")
 router.register("candidaturas", views.CandidaturaViewSet, basename="candidatura")
+router.register("me/certificados", views.CertificadoViewSet, basename="certificado")
 
 gestor_router = DefaultRouter()
 gestor_router.register(
