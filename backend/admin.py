@@ -1,10 +1,13 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.db.models import Count, OuterRef, Subquery
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from backend.compatibilidade import analisar
+from backend.decisao import decidir
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
 from .models import (
@@ -75,8 +78,9 @@ class UsuarioAdmin(BaseUserAdmin, ModelAdmin):
 @admin.register(Aluno)
 class AlunoAdmin(ModelAdmin):
     list_display = ["usuario", "matricula", "curso", "periodo", "consentimento_lgpd"]
-    list_filter = ["curso", "consentimento_lgpd"]
-    search_fields = ["usuario__nome", "usuario__email", "matricula"]
+    list_filter = ["curso", "periodo", "consentimento_lgpd"]
+    search_fields = ["usuario__nome", "usuario__email", "matricula", "curso__nome"]
+    list_select_related = ["usuario", "curso"]
 
 
 @admin.register(Gestor)
@@ -156,13 +160,43 @@ class EmpresaAdmin(ModelAdmin):
     list_display = ["__str__", "contato_nome", "convenio_status", "ativa"]
     list_filter = ["convenio_status", "ativa"]
     search_fields = ["nome", "nome_fantasia", "contato_nome"]
+    actions = ["ativar", "desativar"]
+
+    @admin.action(description="Ativar empresas selecionadas", permissions=["change"])
+    def ativar(self, request, queryset):
+        n = queryset.update(ativa=True)
+        self.message_user(request, f"{n} empresa(s) ativada(s).", messages.SUCCESS)
+
+    @admin.action(description="Desativar empresas selecionadas", permissions=["change"])
+    def desativar(self, request, queryset):
+        n = queryset.update(ativa=False)
+        self.message_user(request, f"{n} empresa(s) desativada(s).", messages.SUCCESS)
 
 
 @admin.register(Vaga)
 class VagaAdmin(ModelAdmin):
-    list_display = ["titulo", "empresa", "tipo", "modalidade", "status", "prazo"]
-    list_filter = ["status", "tipo", "modalidade", "cursos"]
-    search_fields = ["titulo", "empresa__nome", "empresa__nome_fantasia"]
+    list_display = ["titulo", "empresa", "tipo", "modalidade", "status", "prazo", "n_candidaturas"]
+    list_filter = ["status", "tipo", "modalidade", "cursos", "empresa"]
+    search_fields = ["titulo", "empresa__nome", "empresa__nome_fantasia", "cursos__nome"]
+    list_select_related = ["empresa"]
+    actions = ["abrir", "encerrar"]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_n_candidaturas=Count("candidaturas", distinct=True))
+
+    @admin.display(description="candidaturas", ordering="_n_candidaturas")
+    def n_candidaturas(self, vaga):
+        return vaga._n_candidaturas
+
+    @admin.action(description="Abrir vagas selecionadas", permissions=["change"])
+    def abrir(self, request, queryset):
+        n = queryset.update(status=Vaga.Status.ABERTA)
+        self.message_user(request, f"{n} vaga(s) aberta(s).", messages.SUCCESS)
+
+    @admin.action(description="Encerrar vagas selecionadas", permissions=["change"])
+    def encerrar(self, request, queryset):
+        n = queryset.update(status=Vaga.Status.ENCERRADA)
+        self.message_user(request, f"{n} vaga(s) encerrada(s).", messages.SUCCESS)
     filter_horizontal = ["cursos"]
     inlines = [RequisitoCompetenciaInline, RequisitoIdiomaInline]
     readonly_fields = ["modelo_de_curriculo"]
@@ -202,10 +236,70 @@ class RespostaCandidaturaInline(TabularInline):
 
 @admin.register(Candidatura)
 class CandidaturaAdmin(ModelAdmin):
-    list_display = ["aluno", "vaga", "status", "criada_em"]
-    list_filter = ["status"]
-    search_fields = ["aluno__usuario__nome", "vaga__titulo"]
+    """Status muda só por decisão humana: as ações abaixo são o gestor decidindo em lote."""
+
+    list_display = ["aluno", "curso", "vaga", "compatibilidade", "status", "criada_em"]
+    list_filter = ["status", "vaga", "aluno__curso", "vaga__empresa"]
+    search_fields = [
+        "aluno__usuario__nome", "aluno__usuario__email", "aluno__matricula",
+        "vaga__titulo", "vaga__empresa__nome", "aluno__curso__nome",
+    ]
+    list_select_related = ["aluno__usuario", "aluno__curso", "vaga__empresa"]
     inlines = [AnaliseInline, RespostaCandidaturaInline]
+    actions = ["encaminhar", "nao_selecionar", "voltar_para_fila", "reanalisar"]
+
+    def get_queryset(self, request):
+        ultima = Analise.objects.filter(candidatura=OuterRef("pk")).order_by("-criada_em")
+        return super().get_queryset(request).annotate(_score=Subquery(ultima.values("score")[:1]))
+
+    @admin.display(description="curso", ordering="aluno__curso__nome")
+    def curso(self, c):
+        return c.aluno.curso
+
+    @admin.display(description="compatibilidade", ordering="_score")
+    def compatibilidade(self, c):
+        if c._score is None:
+            return "—"
+        faixa = "alta" if c._score >= Analise.FAIXA_ALTA_MIN else "média" if c._score >= Analise.FAIXA_MEDIA_MIN else "baixa"
+        return f"{c._score}% · {faixa}"
+
+    def _decidir_em_lote(self, request, queryset, novo, texto):
+        gestor = getattr(request.user, "gestor", None)
+        if gestor is None:
+            self.message_user(
+                request, "Só quem tem perfil de gestor do TEIA registra decisões.", messages.ERROR
+            )
+            return
+        n = 0
+        for candidatura in queryset:
+            decidir(candidatura, novo, gestor)
+            n += 1
+        self.message_user(request, f"{n} candidatura(s) {texto}.", messages.SUCCESS)
+
+    @admin.action(description="Encaminhar à empresa", permissions=["change"])
+    def encaminhar(self, request, queryset):
+        self._decidir_em_lote(request, queryset, Candidatura.Status.ENCAMINHADA, "encaminhada(s)")
+
+    @admin.action(description="Marcar como não selecionada", permissions=["change"])
+    def nao_selecionar(self, request, queryset):
+        self._decidir_em_lote(request, queryset, Candidatura.Status.NAO_SELECIONADA, "marcada(s) como não selecionada(s)")
+
+    @admin.action(description="Voltar para a fila (desfaz a decisão)", permissions=["change"])
+    def voltar_para_fila(self, request, queryset):
+        self._decidir_em_lote(request, queryset, Candidatura.Status.ANALISADA, "de volta para a fila")
+
+    @admin.action(description="Refazer a análise com o currículo atual", permissions=["change"])
+    def reanalisar(self, request, queryset):
+        n, puladas = 0, 0
+        for candidatura in queryset.select_related("aluno", "vaga"):
+            if not candidatura.aluno.consentimento_vigente:
+                puladas += 1  # LGPD: sem termo vigente o currículo não é analisado
+                continue
+            analisar(candidatura)
+            n += 1
+        self.message_user(request, f"{n} análise(s) refeita(s). As anteriores ficam no histórico.", messages.SUCCESS)
+        if puladas:
+            self.message_user(request, f"{puladas} ignorada(s): o aluno revogou o termo LGPD.", messages.WARNING)
 
 
 @admin.register(Analise)
