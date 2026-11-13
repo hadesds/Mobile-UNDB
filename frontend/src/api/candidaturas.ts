@@ -10,11 +10,17 @@ export const buscarCandidatura = (id: number) => request<Candidatura>(`/candidat
  * Cria a candidatura; o servidor já devolve a primeira análise.
  * `respostas` = { chave: valor } do formulário (buscarFormulario). Em erro 400,
  * o corpo vem como { respostas: { chave: "mensagem" } } para marcar cada campo.
+ * `certificados` (opcional) = IDs de listarCertificados() que o aluno escolheu; já contam na
+ * primeira análise. Erro: { certificados: ["Certificado 7 não é seu."] }.
  */
-export const candidatar = (vaga: number, respostas?: RespostasFormulario) =>
+export const candidatar = (vaga: number, respostas?: RespostasFormulario, certificados?: number[]) =>
   request<Candidatura>("/candidaturas/", {
     method: "POST",
-    body: respostas ? { vaga, respostas } : { vaga },
+    body: {
+      vaga,
+      ...(respostas ? { respostas } : {}),
+      ...(certificados?.length ? { certificados } : {}),
+    },
   });
 
 export const reanalisar = (id: number) =>

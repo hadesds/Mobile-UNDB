@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from backend.compatibilidade import analisar
 from backend.decisao import decidir as decidir_candidatura
 from backend.exportacao_curriculo import SECOES as SECOES_PDF, gerar_pdf
+from backend.importacao_certificados import CertificadoNovo, cadastrar, tipo_pelo_nome
 from backend.formulario_candidatura import (
     RespostasInvalidas,
     modelo_da_vaga,
@@ -33,6 +34,8 @@ from backend.models import (
     ArquivoCurriculo,
     Analise,
     Candidatura,
+    CandidaturaCertificado,
+    Certificado,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -65,6 +68,8 @@ from .serializers import (
     ArquivoCurriculoSerializer,
     CadastroAlunoSerializer,
     CandidatoDetalheSerializer,
+    CertificadoEntradaSerializer,
+    CertificadoSerializer,
     CandidatoSerializer,
     CompetenciaAdminSerializer,
     CursoAdminSerializer,
@@ -342,6 +347,62 @@ class ArquivoCurriculoOriginalView(APIView):
             as_attachment=request.query_params.get("baixar") == "1",
             filename=arquivo.nome_original,
             content_type=_TIPOS_CONTEUDO[arquivo.tipo],
+        )
+
+
+class CertificadoViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Certificados do próprio aluno: enviar (POST multipart), listar, apagar e baixar o arquivo.
+
+    A origem do certificado vem da camada `importacao_certificados`; por enquanto
+    todo certificado criado aqui é `upload`.
+    """
+
+    permission_classes = [IsAlunoComConsentimento]
+    parser_classes = [MultiPartParser, FormParser]
+    serializer_class = CertificadoSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return Certificado.objects.filter(aluno=self.request.user.aluno)
+
+    def create(self, request, *args, **kwargs):
+        ser = CertificadoEntradaSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        dados = ser.validated_data
+        arquivo = dados["arquivo"]
+        certificado = cadastrar(
+            request.user.aluno,
+            CertificadoNovo(
+                titulo=dados["titulo"],
+                instituicao=dados.get("instituicao", ""),
+                carga_horaria=dados.get("carga_horaria"),
+                data=dados.get("data"),
+                conteudo=arquivo.read(),
+                nome_arquivo=arquivo.name,
+            ),
+            Certificado.Origem.UPLOAD,
+        )
+        return Response(CertificadoSerializer(certificado).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def arquivo(self, request, pk=None):
+        """O arquivo como foi enviado. `?baixar=1` força o download."""
+        certificado = self.get_object()
+        try:
+            conteudo = certificado.arquivo.open("rb")
+        except (FileNotFoundError, ValueError):
+            return Response({"detail": "O arquivo não está mais disponível."}, status=status.HTTP_404_NOT_FOUND)
+        return FileResponse(
+            conteudo,
+            as_attachment=request.query_params.get("baixar") == "1",
+            filename=certificado.nome_original or "certificado",
+            content_type=tipo_pelo_nome(certificado.arquivo.name),
         )
 
 
@@ -646,6 +707,7 @@ class CandidaturaViewSet(
             .prefetch_related(
                 Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")),
                 "respostas",
+                "certificados_escolhidos__certificado",
             )
             .order_by("-criada_em")
         )
@@ -679,8 +741,11 @@ class CandidaturaViewSet(
         with transaction.atomic():
             candidatura = Candidatura.objects.create(aluno=aluno, vaga=vaga)
             salvar_respostas(candidatura, linhas)
-            # TODO(T1): gravar aqui os certificados escolhidos (CandidaturaCertificado)
-            # ANTES de analisar, para eles contarem como evidência.
+            # Certificados escolhidos entram ANTES da análise, para contarem como evidência.
+            CandidaturaCertificado.objects.bulk_create(
+                CandidaturaCertificado(candidatura=candidatura, certificado_id=i)
+                for i in ser.validated_data.get("certificados", [])
+            )
             analisar(candidatura)
         return self._detalhe(candidatura.pk, status.HTTP_201_CREATED)
 
@@ -719,7 +784,9 @@ def _candidaturas_gestor():
     return Candidatura.objects.select_related(
         "aluno__usuario", "aluno__curso", "vaga__empresa", "encaminhamento__gestor__usuario"
     ).prefetch_related(
-        Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")), "respostas"
+        Prefetch("analises", queryset=Analise.objects.order_by("-criada_em")),
+        "respostas",
+        "certificados_escolhidos__certificado",
     )
 
 
@@ -811,6 +878,31 @@ class CandidaturaGestorViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSe
 
     def get_queryset(self):
         return _candidaturas_gestor()
+
+    @action(detail=True, methods=["get"], url_path=r"certificados/(?P<certificado_id>\d+)/arquivo")
+    def certificado_arquivo(self, request, pk=None, certificado_id=None):
+        """Arquivo de um certificado que o aluno apresentou nesta candidatura.
+
+        Só quem é gestor, só dos certificados escolhidos para esta candidatura e só
+        com o termo LGPD vigente: o gestor não vê o resto da pasta do aluno.
+        """
+        candidatura = self.get_object()
+        if not candidatura.aluno.consentimento_vigente:
+            return Response({"detail": "O aluno revogou o consentimento."}, status=status.HTTP_404_NOT_FOUND)
+        escolhido = candidatura.certificados_escolhidos.filter(certificado_id=certificado_id).select_related("certificado").first()
+        if escolhido is None:
+            return Response({"detail": "Certificado não encontrado nesta candidatura."}, status=status.HTTP_404_NOT_FOUND)
+        certificado = escolhido.certificado
+        try:
+            conteudo = certificado.arquivo.open("rb")
+        except (FileNotFoundError, ValueError):
+            return Response({"detail": "O arquivo não está mais disponível."}, status=status.HTTP_404_NOT_FOUND)
+        return FileResponse(
+            conteudo,
+            as_attachment=request.query_params.get("baixar") == "1",
+            filename=certificado.nome_original or "certificado",
+            content_type=tipo_pelo_nome(certificado.arquivo.name),
+        )
 
     @action(detail=True, methods=["post"])
     def decidir(self, request, pk=None):
