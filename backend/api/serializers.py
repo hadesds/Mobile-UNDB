@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from backend.importacao_certificados import CertificadoInvalido, tipo_de_conteudo
+from backend.importacao_certificados import LIMITE_BYTES, CertificadoInvalido, tipo_de_conteudo
 from backend.models import (
     VERSAO_TERMO_LGPD,
     Aluno,
@@ -318,6 +318,9 @@ class CertificadoEntradaSerializer(serializers.Serializer):
         return valor
 
     def validate_arquivo(self, arquivo):
+        # Confere o tamanho informado antes de ler: arquivo enorme não vai para a memória.
+        if arquivo.size is not None and arquivo.size > LIMITE_BYTES:
+            raise serializers.ValidationError("O arquivo passa de 5 MB. Envie uma versão menor.")
         try:
             tipo_de_conteudo(arquivo.name, arquivo.read())
         except CertificadoInvalido as exc:

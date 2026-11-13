@@ -19,6 +19,8 @@ from backend.decisao import ENCAMINHAR, decidir
 from backend.importacao_certificados import tipo_pelo_nome
 from backend.models import Analise, Candidatura, Vaga
 
+LIMITE_OBSERVACAO = 2000  # igual ao `observacao` de gestor/candidaturas/{id}/decidir/
+
 
 def faixa_de(score: int | None) -> str:
     if score is None:
@@ -106,6 +108,12 @@ class TriagemAdminMixin:
                 raise PermissionDenied
             ids = [int(i) for i in request.POST.getlist("encaminhar") if i.isdigit()]
             observacao = request.POST.get("observacao", "").strip() or None
+            if observacao and len(observacao) > LIMITE_OBSERVACAO:
+                # Mesmo limite da API (DecisaoSerializer); o maxlength do HTML não basta.
+                messages.error(
+                    request, f"A observação passa de {LIMITE_OBSERVACAO} caracteres. Nada foi alterado."
+                )
+                return redirect("admin:backend_vaga_triagem", vaga.pk)
             n = 0
             for c in Candidatura.objects.filter(vaga=vaga, pk__in=ids).exclude(status__in=ENCAMINHAR):
                 decidir(c, Candidatura.Status.ENCAMINHADA, gestor, observacao)
