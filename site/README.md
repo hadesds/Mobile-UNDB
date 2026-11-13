@@ -27,7 +27,7 @@ O APK não vai para o git nem para o deploy do site.
 gh release create v0.X.0 curriculo-sob-medida.apk --target 01-backend --title "v0.X.0" --notes "..."
 ```
 
-O site passa a baixar a versão nova sozinho. Atualize o texto "versão 1.0.0" em `index.html`
+O site passa a baixar a versão nova sozinho. Atualize o texto "versão X.Y.Z" em `index.html` e, em `frontend/app.json`, `version` e `versionCode` (este sempre maior que o anterior)
 quando mudar a versão do app.
 
 ## Deploy na Vercel
