@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
 from backend.compatibilidade import analisar
+from backend.admin_triagem import TriagemAdminMixin, faixa_de
 from backend.decisao import decidir
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
@@ -174,8 +175,8 @@ class EmpresaAdmin(ModelAdmin):
 
 
 @admin.register(Vaga)
-class VagaAdmin(ModelAdmin):
-    list_display = ["titulo", "empresa", "tipo", "modalidade", "status", "prazo", "n_candidaturas"]
+class VagaAdmin(TriagemAdminMixin, ModelAdmin):
+    list_display = ["titulo", "empresa", "tipo", "modalidade", "status", "prazo", "n_candidaturas", "triagem_link"]
     list_filter = ["status", "tipo", "modalidade", "cursos", "empresa"]
     search_fields = ["titulo", "empresa__nome", "empresa__nome_fantasia", "cursos__nome"]
     list_select_related = ["empresa"]
@@ -199,7 +200,7 @@ class VagaAdmin(ModelAdmin):
         self.message_user(request, f"{n} vaga(s) encerrada(s).", messages.SUCCESS)
     filter_horizontal = ["cursos"]
     inlines = [RequisitoCompetenciaInline, RequisitoIdiomaInline]
-    readonly_fields = ["modelo_de_curriculo"]
+    readonly_fields = ["modelo_de_curriculo", "triagem_link"]
 
     @admin.display(description="modelo de currículo")
     def modelo_de_curriculo(self, vaga):
@@ -260,8 +261,7 @@ class CandidaturaAdmin(ModelAdmin):
     def compatibilidade(self, c):
         if c._score is None:
             return "—"
-        faixa = "alta" if c._score >= Analise.FAIXA_ALTA_MIN else "média" if c._score >= Analise.FAIXA_MEDIA_MIN else "baixa"
-        return f"{c._score}% · {faixa}"
+        return f"{c._score}% · {faixa_de(c._score).lower()}"
 
     def _decidir_em_lote(self, request, queryset, novo, texto):
         gestor = getattr(request.user, "gestor", None)

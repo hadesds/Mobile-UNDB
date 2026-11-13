@@ -1,0 +1,128 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .tri { display: grid; gap: 1rem; }
+  .tri-topo { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: baseline; }
+  .tri-aviso { padding: .75rem 1rem; border-radius: .5rem; border: 1px solid rgba(127,127,127,.35); }
+  .tri-card { border: 1px solid rgba(127,127,127,.3); border-radius: .75rem; padding: 1rem 1.25rem; display: grid; gap: .75rem; }
+  .tri-cab { display: flex; gap: 1rem; align-items: flex-start; }
+  .tri-cab label { display: flex; gap: .75rem; align-items: flex-start; cursor: pointer; flex: 1; }
+  .tri-cab input[type=checkbox] { width: 1.25rem; height: 1.25rem; margin-top: .2rem; }
+  .tri-nome { font-weight: 600; font-size: 1.05rem; }
+  .tri-meta { opacity: .75; font-size: .9rem; }
+  .tri-nota { text-align: right; white-space: nowrap; }
+  .tri-nota strong { font-size: 1.4rem; display: block; }
+  .tri-chip { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .8rem; border: 1px solid rgba(127,127,127,.4); }
+  .tri-sec h4 { font-weight: 600; margin: 0 0 .25rem; font-size: .9rem; text-transform: uppercase; letter-spacing: .03em; opacity: .8; }
+  .tri-sec ul { margin: 0; padding-left: 1.1rem; list-style: disc; }
+  .tri-sec li { margin: .15rem 0; }
+  .tri-ok { color: #00715F; } .tri-falta { color: #B86A00; }
+  @media (prefers-color-scheme: dark) { .tri-ok { color: #4fd1b8; } .tri-falta { color: #f2b45a; } }
+  .tri-acoes { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; position: sticky; bottom: 0; padding: 1rem 0; background: inherit; }
+  .tri-acoes textarea { width: min(36rem, 100%); min-height: 4rem; border: 1px solid rgba(127,127,127,.4); border-radius: .5rem; padding: .5rem; background: transparent; color: inherit; }
+  .tri-acoes button { padding: .6rem 1.2rem; border-radius: .5rem; font-weight: 600; background: #CC004C; color: #fff; }
+  .tri-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+</style>
+
+<div class="tri">
+  <div class="tri-topo">
+    <h2 style="font-size:1.3rem;font-weight:700">{{ vaga.titulo }}</h2>
+    <span class="tri-meta">{{ vaga.empresa }} · {{ vaga.get_status_display }}</span>
+    <span class="tri-meta">{% for rotulo, n in contagem.items %}{{ rotulo }}: {{ n }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+    <a href="{% url 'admin:backend_vaga_change' vaga.pk %}">Editar vaga</a>
+  </div>
+
+  <p class="tri-aviso">
+    Ordenado pela compatibilidade da última análise. <strong>A nota só ordena:</strong> ninguém é
+    eliminado e todos aparecem aqui. A decisão de encaminhar é sua. Quem não for marcado continua na fila.
+    Para desfazer, use a ação "Voltar para a fila" em Candidaturas.
+  </p>
+  {% if not pode_decidir %}
+    <p class="tri-aviso">Você pode consultar a triagem, mas só um gestor do TEIA (com permissão de alterar candidaturas) registra o encaminhamento.</p>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {% for l in linhas %}
+      {% with c=l.c %}
+      <section class="tri-card" aria-label="{{ c.aluno.usuario.nome }}">
+        <div class="tri-cab">
+          <label>
+            {% if pode_decidir and l.pode_marcar %}
+              <input type="checkbox" name="encaminhar" value="{{ c.pk }}">
+            {% endif %}
+            <span>
+              <span class="tri-nome">{{ forloop.counter }}. {{ c.aluno.usuario.nome }}</span><br>
+              <span class="tri-meta">{{ c.aluno.curso }} · {{ c.aluno.periodo }}º período · {{ c.aluno.usuario.email }}</span><br>
+              <span class="tri-chip">{{ c.get_status_display }}</span>
+              {% if c.encaminhamento %}<span class="tri-meta"> por {{ c.encaminhamento.gestor }} em {{ c.encaminhamento.criado_em|date:"d/m/Y" }}</span>{% endif %}
+            </span>
+          </label>
+          <div class="tri-nota">
+            {% if l.analise %}<strong>{{ l.analise.score }}%</strong><span class="tri-meta">{{ l.faixa }}</span>{% else %}<span class="tri-meta">sem análise</span>{% endif %}
+          </div>
+        </div>
+
+        {% if l.analise %}<p>{{ l.analise.justificativa }}</p>{% endif %}
+
+        <div class="tri-grid">
+          <div class="tri-sec">
+            <h4>Requisitos</h4>
+            <ul>
+              {% for i in l.itens %}
+                <li class="{% if i.status == 'encontrado' %}tri-ok{% else %}tri-falta{% endif %}">
+                  {% if i.status == 'encontrado' %}✓{% elif i.status == 'diferente' %}~{% else %}?{% endif %}
+                  <strong>{{ i.requisito }}</strong>{% if not i.obrigatorio %} (desejável){% endif %}: {{ i.detalhe }}
+                </li>
+              {% empty %}<li>Sem requisitos avaliados.</li>{% endfor %}
+            </ul>
+          </div>
+
+          <div class="tri-sec">
+            <h4>Respostas do currículo</h4>
+            {% if l.respostas is None %}
+              <p class="tri-meta">Oculto: o aluno revogou o termo LGPD.</p>
+            {% else %}
+              <ul>
+                {% for r in l.respostas %}<li><strong>{{ r.rotulo }}:</strong> {{ r.valor|default:"—"|linebreaksbr }}</li>
+                {% empty %}<li class="tri-meta">Sem respostas.</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="tri-sec">
+            <h4>Certificados apresentados</h4>
+            {% if l.certificados is None %}
+              <p class="tri-meta">Oculto: o aluno revogou o termo LGPD.</p>
+            {% else %}
+              <ul>
+                {% for cert in l.certificados %}
+                  <li>
+                    <a href="{% url 'admin:backend_vaga_triagem_certificado' vaga.pk c.pk cert.pk %}" target="_blank" rel="noopener">{{ cert.titulo }}</a>
+                    <span class="tri-meta">{% if cert.instituicao %}· {{ cert.instituicao }}{% endif %}{% if cert.carga_horaria %} · {{ cert.carga_horaria }} h{% endif %}</span>
+                  </li>
+                {% empty %}<li class="tri-meta">Nenhum certificado apresentado.</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+      {% endwith %}
+    {% empty %}
+      <p class="tri-aviso">Nenhuma candidatura para esta vaga ainda.</p>
+    {% endfor %}
+
+    {% if pode_decidir and linhas %}
+      <div class="tri-acoes">
+        <label>Observação para a empresa (opcional)<br>
+          <textarea name="observacao" maxlength="2000"></textarea>
+        </label>
+        <button type="submit">Encaminhar marcados à empresa</button>
+      </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}
