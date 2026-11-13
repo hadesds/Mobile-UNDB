@@ -2,10 +2,12 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.urls import reverse
+from django.utils.text import slugify
 from django.utils import timezone
 from backend.api.permissions import _eh_gestor
 from backend.api.serializers import VagaSerializer
-from backend.models import Vaga
+from backend.formulario_candidatura import modelo_da_vaga
+from backend.models import CampoModelo, Vaga
 from .models import CAMPOS_VAGA, LinkEmpresa, SolicitacaoVaga
 
 
@@ -101,6 +103,43 @@ def validar(solicitacao, competencias, idiomas, cursos, publicar=False):
     return serializer
 
 
+MAX_PERGUNTAS = 10
+
+
+def validar_perguntas(perguntas):
+    """Perguntas da empresa ao candidato: até 10, com texto e sem repetição."""
+    if len(perguntas) > MAX_PERGUNTAS:
+        raise DadosInvalidos({"perguntas": [f"Envie até {MAX_PERGUNTAS} perguntas."]})
+    vistas = set()
+    for p in perguntas:
+        rotulo = " ".join(str(p.get("rotulo", "")).split())
+        if not rotulo:
+            raise DadosInvalidos({"perguntas": ["Toda pergunta precisa de um texto."]})
+        if rotulo.casefold() in vistas:
+            raise DadosInvalidos({"perguntas": [f"Pergunta repetida: {rotulo}"]})
+        vistas.add(rotulo.casefold())
+
+
+def _criar_campos_do_modelo(vaga, solicitacao):
+    """Currículo da vaga = campos do perfil + as perguntas da empresa (origem "vaga")."""
+    modelo = modelo_da_vaga(vaga)
+    usadas = set(modelo.campos.values_list("chave", flat=True))
+    ordem = modelo.campos.count()
+    campos = []
+    for pergunta in solicitacao.perguntas.all():
+        base = slugify(pergunta.rotulo)[:40] or "pergunta"
+        chave, n = base, 2
+        while chave in usadas:
+            chave, n = f"{base}-{n}", n + 1
+        usadas.add(chave)
+        campos.append(CampoModelo(
+            modelo=modelo, chave=chave, rotulo=pergunta.rotulo, ajuda=pergunta.ajuda,
+            origem=CampoModelo.Origem.VAGA, formato=pergunta.formato,
+            obrigatorio=pergunta.obrigatorio, ordem=ordem))
+        ordem += 1
+    CampoModelo.objects.bulk_create(campos)
+
+
 @transaction.atomic
 def publicar(solicitacao_id, user):
     if not gestor_autorizado(user):
@@ -115,6 +154,7 @@ def publicar(solicitacao_id, user):
         solicitacao.idiomas.values("idioma", "nivel_minimo", "obrigatorio"),
         solicitacao.cursos.values_list("pk", flat=True), publicar=True)
     vaga = serializer.save(gestor=user.gestor)
+    _criar_campos_do_modelo(vaga, solicitacao)
     solicitacao.vaga = vaga
     solicitacao.status = SolicitacaoVaga.Status.PUBLICADA
     solicitacao.revisado_por = user.gestor

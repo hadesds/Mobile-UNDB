@@ -14,6 +14,14 @@ Formas de operar o mesmo fluxo, com as mesmas regras (`services.py`):
 - **Django Admin:** links somente para consulta (gerar/revogar é pelo app); solicitações
   podem ser revisadas e publicadas (exige `is_staff` e vínculo de gestor).
 
+## Perguntas ao candidato
+
+Além dos dados da vaga, a empresa pode cadastrar até 10 perguntas (`PerguntaSolicitada`).
+Ao publicar, `services.publicar` cria o modelo de currículo da vaga (campos do perfil do
+aluno) e acrescenta cada pergunta como `CampoModelo` de origem "vaga". Assim o aluno
+confere o currículo já preenchido e responde às perguntas na candidatura. A `0004`
+cria a tabela.
+
 ## Instalação
 
 Execute `python manage.py migrate` para aplicar as migrações de `solicitacoes`

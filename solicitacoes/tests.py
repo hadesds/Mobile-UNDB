@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
-from backend.models import Usuario, Gestor, Faculdade, NucleoCarreiras, Empresa, Competencia, Vaga
+from backend.models import CampoModelo, Usuario, Gestor, Faculdade, NucleoCarreiras, Empresa, Competencia, Vaga
 from .models import LinkEmpresa, SolicitacaoVaga
 from .services import publicar
 
@@ -26,7 +26,8 @@ class FluxoTests(TestCase):
         return {"titulo": "Desenvolvedor", "tipo": "clt", "modalidade": "remoto",
                 "competencias-TOTAL_FORMS": "1", "competencias-INITIAL_FORMS": "0",
                 "competencias-0-competencia": str(self.comp.pk), "competencias-0-obrigatorio": "on",
-                "idiomas-TOTAL_FORMS": "0", "idiomas-INITIAL_FORMS": "0"}
+                "idiomas-TOTAL_FORMS": "0", "idiomas-INITIAL_FORMS": "0",
+                "perguntas-TOTAL_FORMS": "0", "perguntas-INITIAL_FORMS": "0"}
 
     def enviar(self):
         response = self.client.post(self.url, self.payload())
@@ -48,6 +49,39 @@ class FluxoTests(TestCase):
         obj.refresh_from_db()
         self.assertEqual(obj.revisado_por, self.gestor)
         self.assertIsNotNone(obj.publicada_em)
+
+    def perguntas(self, *itens):
+        dados = self.payload()
+        dados.update({"perguntas-TOTAL_FORMS": str(len(itens)), "perguntas-INITIAL_FORMS": "0"})
+        for i, (rotulo, formato) in enumerate(itens):
+            dados.update({f"perguntas-{i}-rotulo": rotulo, f"perguntas-{i}-formato": formato,
+                          f"perguntas-{i}-obrigatorio": "on"})
+        return dados
+
+    def test_perguntas_viram_campos_do_formulario_do_aluno(self):
+        dados = self.perguntas(("Por que esta vaga?", "texto_longo"), ("Link do portfólio", "url"))
+        self.assertEqual(self.client.post(self.url, dados).status_code, 302)
+        obj = SolicitacaoVaga.objects.get()
+        self.assertEqual([p.rotulo for p in obj.perguntas.all()], ["Por que esta vaga?", "Link do portfólio"])
+        vaga = publicar(obj.pk, self.user)
+        campos = list(vaga.modelo_curriculo.campos.filter(origem="vaga"))
+        self.assertEqual([(c.rotulo, c.formato, c.obrigatorio) for c in campos],
+                         [("Por que esta vaga?", "texto_longo", True), ("Link do portfólio", "url", True)])
+        self.assertTrue(vaga.modelo_curriculo.campos.filter(origem="perfil", chave="nome").exists())
+        self.assertEqual(len({c.chave for c in vaga.modelo_curriculo.campos.all()}),
+                         vaga.modelo_curriculo.campos.count())
+
+    def test_pergunta_nao_colide_com_campo_do_perfil(self):
+        self.assertEqual(self.client.post(self.url, self.perguntas(("Nome", "texto"))).status_code, 302)
+        vaga = publicar(SolicitacaoVaga.objects.get().pk, self.user)
+        self.assertEqual(vaga.modelo_curriculo.campos.get(rotulo="Nome").chave, "nome-2")
+
+    def test_pergunta_repetida_e_rejeitada(self):
+        dados = self.perguntas(("Por quê?", "texto"), ("por quê?", "texto"))
+        response = self.client.post(self.url, dados)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pergunta repetida")
+        self.assertFalse(SolicitacaoVaga.objects.exists())
 
     def test_dados_controlados_pelo_servidor(self):
         dados = self.payload()

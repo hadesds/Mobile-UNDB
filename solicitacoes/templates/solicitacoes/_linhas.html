@@ -1,0 +1,16 @@
+{# formset em linhas: as vazias além das iniciais ficam ocultas e o botão revela a próxima #}
+{{ formset.management_form }}
+{% for e in formset.non_form_errors %}<p class="erro erro--bloco">{{ e }}</p>{% endfor %}
+<div class="linhas" data-linhas data-visiveis="{{ visiveis }}">
+  {% for item in formset %}
+  <fieldset class="linha{% if item.errors or formset.is_bound and item.has_changed %} linha--usada{% endif %}" data-linha>
+    <legend>{{ rotulo }} {{ forloop.counter }}</legend>
+    <div class="linha__campos">
+      {% for field in item.visible_fields %}{% if field.name != "DELETE" %}{% include "solicitacoes/_campo.html" %}{% endif %}{% endfor %}
+      {% for field in item.hidden_fields %}{{ field }}{% endfor %}
+    </div>
+    <button type="button" class="botao-texto" data-limpar>Limpar {{ rotulo|lower }}</button>
+  </fieldset>
+  {% endfor %}
+  <button type="button" class="botao botao--contorno" data-adicionar hidden>+ Adicionar {{ rotulo|lower }}</button>
+</div>

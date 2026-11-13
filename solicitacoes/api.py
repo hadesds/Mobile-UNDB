@@ -20,14 +20,16 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from backend.api.permissions import _eh_admin, _eh_gestor
-from backend.models import Competencia, Curso, Empresa, Idioma, NivelIdioma, Vaga, normalizar_termo
+from backend.models import CampoModelo, Competencia, Curso, Empresa, Idioma, NivelIdioma, Vaga, normalizar_termo
 
-from .models import CAMPOS_VAGA, CompetenciaSolicitada, IdiomaSolicitado, LinkEmpresa, SolicitacaoVaga
+from .models import (CAMPOS_VAGA, CompetenciaSolicitada, IdiomaSolicitado, LinkEmpresa,
+                     PerguntaSolicitada, SolicitacaoVaga)
 from . import services
 
 VALIDADE_MAXIMA = timedelta(days=90)
 MAX_COMPETENCIAS = 20
 MAX_IDIOMAS = 10
+MAX_PERGUNTAS = services.MAX_PERGUNTAS
 
 
 def _escolhas(cls):
@@ -103,6 +105,14 @@ class IdiomaSolicitadoSerializer(serializers.ModelSerializer):
         fields = ["idioma", "nivel_minimo", "obrigatorio"]
 
 
+class PerguntaSolicitadaSerializer(serializers.ModelSerializer):
+    rotulo = serializers.CharField(max_length=150)
+
+    class Meta:
+        model = PerguntaSolicitada
+        fields = ["rotulo", "ajuda", "formato", "obrigatorio"]
+
+
 class SolicitacaoSerializer(serializers.ModelSerializer):
     """Mesmo formato do VagaSerializer (campos, cursos e requisitos aninhados).
 
@@ -116,10 +126,18 @@ class SolicitacaoSerializer(serializers.ModelSerializer):
         many=True, required=False, source="competencias", max_length=MAX_COMPETENCIAS)
     requisitos_idioma = IdiomaSolicitadoSerializer(
         many=True, required=False, source="idiomas", max_length=MAX_IDIOMAS)
+    perguntas = PerguntaSolicitadaSerializer(many=True, required=False, max_length=MAX_PERGUNTAS)
 
     class Meta:
         model = SolicitacaoVaga
-        fields = [*CAMPOS_VAGA, "cursos", "requisitos_competencia", "requisitos_idioma"]
+        fields = [*CAMPOS_VAGA, "cursos", "requisitos_competencia", "requisitos_idioma", "perguntas"]
+
+    def validate_perguntas(self, itens):
+        try:
+            services.validar_perguntas(itens)
+        except services.DadosInvalidos as exc:
+            raise serializers.ValidationError(exc.detail["perguntas"])
+        return itens
 
     def _link(self):
         return self.instance.link if self.instance else self.context["link"]
@@ -156,6 +174,7 @@ class SolicitacaoSerializer(serializers.ModelSerializer):
         cursos = validated.pop("cursos", None)
         comps = validated.pop("competencias", None)
         idiomas = validated.pop("idiomas", None)
+        perguntas = validated.pop("perguntas", None)
         for campo, valor in validated.items():
             setattr(obj, campo, valor)
         obj.save()
@@ -169,6 +188,10 @@ class SolicitacaoSerializer(serializers.ModelSerializer):
             obj.idiomas.all().delete()
             IdiomaSolicitado.objects.bulk_create(
                 [IdiomaSolicitado(solicitacao=obj, **i) for i in idiomas])
+        if perguntas is not None:
+            obj.perguntas.all().delete()
+            PerguntaSolicitada.objects.bulk_create(
+                [PerguntaSolicitada(solicitacao=obj, ordem=i, **p) for i, p in enumerate(perguntas)])
         return obj
 
     def create(self, validated):
@@ -266,7 +289,7 @@ class SolicitacaoGestorViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
     def get_queryset(self):
         qs = (SolicitacaoVaga.objects
               .select_related("link__empresa", "revisado_por__usuario")
-              .prefetch_related("cursos", "competencias__competencia", "idiomas")
+              .prefetch_related("cursos", "competencias__competencia", "idiomas", "perguntas")
               .order_by("-criada_em"))
         p = self.request.query_params
         if p.get("status"):
@@ -362,12 +385,14 @@ class FormularioPublicoView(_Publico, APIView):
         resposta = Response({
             "empresa": {"nome": str(link.empresa)},
             "expira_em": link.expira_em,
-            "limites": {"requisitos_competencia": MAX_COMPETENCIAS, "requisitos_idioma": MAX_IDIOMAS},
+            "limites": {"requisitos_competencia": MAX_COMPETENCIAS, "requisitos_idioma": MAX_IDIOMAS,
+                        "perguntas": MAX_PERGUNTAS},
             "opcoes": {
                 "vaga_tipos": _escolhas(Vaga.Tipo),
                 "vaga_modalidades": _escolhas(Vaga.Modalidade),
                 "idiomas": _escolhas(Idioma),
                 "niveis_idioma": _escolhas(NivelIdioma),
+                "pergunta_formatos": _escolhas(CampoModelo.Formato),
                 "cursos": list(Curso.objects.filter(ativo=True).order_by("nome")
                                .values("id", "nome", "total_periodos")),
             },

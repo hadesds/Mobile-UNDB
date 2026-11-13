@@ -211,7 +211,7 @@ Token inexistente → 404. Token conhecido, mas `revogado`/`utilizado`/`expirado
 | Rota | Método | Notas |
 |---|---|---|
 | `empresas/formulario/{token}/` | GET | `{empresa: {nome}, expira_em, limites, opcoes: {vaga_tipos, vaga_modalidades, idiomas, niveis_idioma, cursos}}` |
-| `empresas/formulario/{token}/` | POST | `{titulo, tipo, modalidade, descricao?, prazo?, periodo_minimo?, disponibilidade_horario?, cursos?, requisitos_competencia?: [{competencia, obrigatorio}], requisitos_idioma?: [{idioma, nivel_minimo, obrigatorio}]}` → 201. Até 20 competências e 10 idiomas. `empresa`, `status` etc. são ignorados |
+| `empresas/formulario/{token}/` | POST | `{titulo, tipo, modalidade, descricao?, prazo?, periodo_minimo?, disponibilidade_horario?, cursos?, requisitos_competencia?: [{competencia, obrigatorio}], requisitos_idioma?: [{idioma, nivel_minimo, obrigatorio}]}` → 201. Até 20 competências e 10 idiomas. `perguntas?: [{rotulo, ajuda?, formato?, obrigatorio?}]` (até 10; `formato` ∈ `opcoes.pergunta_formatos`, padrão `texto_longo`) são perguntas ao candidato: ao publicar viram campos de origem `vaga` do formulário de candidatura (`vagas/{id}/formulario/`), junto com os campos do perfil. O GET traz `limites.perguntas` e `opcoes.pergunta_formatos`. A resposta do gestor (`gestor/solicitacoes/`) também inclui `perguntas` `empresa`, `status` etc. são ignorados |
 | `empresas/formulario/{token}/competencias/?q=` | GET | busca no vocabulário (nome ou sinônimo), até 30 itens |
 
 Página externa em outro domínio: inclua a origem em `CORS_ALLOWED_ORIGINS`.

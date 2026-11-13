@@ -168,6 +168,28 @@ class FormularioPublicoTests(Base):
         self.assertEqual(r.data["situacao"], "utilizado")
         self.assertEqual(publico.get(self.url).status_code, 410)
 
+    def test_perguntas_ao_candidato(self):
+        self.assertEqual(self.publico.get(self.url).data["limites"]["perguntas"], 10)
+        perguntas = [{"rotulo": "Por que esta vaga?", "formato": "texto_longo"},
+                     {"rotulo": "Tem disponibilidade presencial?", "formato": "sim_nao", "obrigatorio": False,
+                      "ajuda": "Responda sim ou não"}]
+        r = self.publico.post(self.url, {**self.payload(), "perguntas": perguntas}, format="json")
+        self.assertEqual(r.status_code, 201, r.data)
+        obj = SolicitacaoVaga.objects.get()
+        self.assertEqual([(p.rotulo, p.formato, p.obrigatorio) for p in obj.perguntas.all()],
+                         [("Por que esta vaga?", "texto_longo", True),
+                          ("Tem disponibilidade presencial?", "sim_nao", False)])
+        self.assertEqual(obj.perguntas.last().ordem, 1)
+
+    def test_perguntas_invalidas(self):
+        for perguntas in ([{"rotulo": "  "}], [{"rotulo": "A"}, {"rotulo": "a"}],
+                          [{"rotulo": "P", "formato": "xyz"}],
+                          [{"rotulo": f"P{i}"} for i in range(11)]):
+            r = self.publico.post(self.url, {**self.payload(), "perguntas": perguntas}, format="json")
+            self.assertEqual(r.status_code, 400, perguntas)
+            self.assertIn("perguntas", r.data)
+        self.assertFalse(SolicitacaoVaga.objects.exists())
+
     def test_campos_controlados_pelo_servidor(self):
         dados = self.payload(status="publicada", vaga=1, link=999, empresa=999, revisado_por=1)
         self.assertEqual(self.publico.post(self.url, dados, format="json").status_code, 201)
@@ -253,6 +275,7 @@ class RevisaoGestorTests(Base):
         vaga = Vaga.objects.get(pk=r.data["vaga"])
         self.assertEqual((vaga.titulo, vaga.status, vaga.gestor), ("Estágio Backend", "aberta", self.gestor))
         self.assertEqual(self.api.post(self.url + "publicar/").data["vaga"], vaga.pk)  # idempotente
+        self.assertEqual(vaga.modelo_curriculo.campos.filter(origem="vaga").count(), 0)
         self.assertEqual(Vaga.objects.count(), 1)
         self.assertEqual(self.api.patch(self.url, {"titulo": "X"}, format="json").status_code, 409)
         self.assertEqual(self.api.post(self.url + "recusar/").status_code, 400)

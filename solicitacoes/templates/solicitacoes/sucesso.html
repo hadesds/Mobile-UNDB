@@ -1,1 +1,10 @@
-{% extends "solicitacoes/base.html" %}{% block content %}<h1>Vaga recebida</h1><p>Seu envio está pendente de revisão pelo TEIA. A publicação ocorrerá somente após a confirmação de um gestor.</p>{% endblock %}
+{% extends "solicitacoes/base.html" %}
+{% block titulo %}Vaga recebida{% endblock %}
+{% block content %}
+<section class="cartao estado">
+  <span class="estado__icone estado__icone--ok" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+  <h1>Vaga recebida</h1>
+  <p>Seu envio está pendente de revisão pelo TEIA. A publicação ocorrerá somente após a confirmação de um gestor.</p>
+  <p class="ajuda">Você pode fechar esta página.</p>
+</section>
+{% endblock %}

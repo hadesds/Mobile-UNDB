@@ -1,3 +1,23 @@
 {% load static %}<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>Enviar vaga — TEIA</title><link rel="stylesheet" href="{% static 'solicitacoes/formulario.css' %}"></head>
-<body><main><header>TEIA · Empresas</header>{% block content %}{% endblock %}</main></body></html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#cc004c">
+  <title>{% block titulo %}Enviar vaga{% endblock %} — TEIA</title>
+  <link rel="stylesheet" href="{% static 'solicitacoes/formulario.css' %}">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo__linha">
+      <span class="marca__selo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 10h14M16 10v13"/></svg></span>
+      <span class="marca__nome">TEIA<small>Núcleo de Carreiras · UNDB</small></span>
+    </div>
+  </header>
+  <main class="pagina">{% block content %}{% endblock %}</main>
+  <footer class="rodape">Link pessoal e de uso único. Não compartilhe este endereço.</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_http_methods
 from .forms import SolicitacaoForm, CompetenciaForm
-from .models import LinkEmpresa, SolicitacaoVaga, CompetenciaSolicitada, IdiomaSolicitado
+from .models import LinkEmpresa, SolicitacaoVaga, CompetenciaSolicitada, IdiomaSolicitado, PerguntaSolicitada
 from .services import gestor_autorizado, publicar
 
 
@@ -72,12 +72,18 @@ class IdiomaInline(RequisitoInlineMixin, admin.TabularInline):
     extra = 1
 
 
+class PerguntaInline(RequisitoInlineMixin, admin.TabularInline):
+    model = PerguntaSolicitada
+    extra = 1
+    max_num = 10
+
+
 @admin.register(SolicitacaoVaga)
 class SolicitacaoVagaAdmin(GestorAdminMixin, admin.ModelAdmin):
     form = SolicitacaoForm
     list_display = ["titulo", "link", "status", "criada_em", "revisado_por"]
     list_filter = ["status"]
-    inlines = [CompetenciaInline, IdiomaInline]
+    inlines = [CompetenciaInline, IdiomaInline, PerguntaInline]
     readonly_fields = ["link", "status", "vaga", "revisado_por", "criada_em", "publicada_em", "confirmar_publicacao"]
 
     def has_add_permission(self, request):

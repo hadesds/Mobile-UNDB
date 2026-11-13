@@ -1,8 +1,91 @@
-{% extends "solicitacoes/base.html" %}{% block content %}
-<h1>Envie uma vaga</h1><p>Empresa: <strong>{{ empresa }}</strong></p><p>Seu envio será revisado pelo TEIA antes da publicação. Este link permite um envio.</p>
-<form method="post">{% csrf_token %}{{ form.as_p }}
+{% extends "solicitacoes/base.html" %}
+{% block content %}
+<section class="intro">
+  <p class="sobretitulo">Envio de vaga</p>
+  <h1>Envie uma vaga</h1>
+  <p class="intro__empresa">Empresa: <strong>{{ empresa }}</strong></p>
+  <p class="intro__texto">Seu envio será revisado pelo TEIA antes da publicação. Este link permite um envio.</p>
+</section>
 
-<h2>Competências</h2><p>Preencha as linhas necessárias. As demais podem ficar vazias.</p>
-{{ competencias.management_form }}{{ competencias.non_form_errors }}{% for item in competencias %}<fieldset><legend>Competência {{ forloop.counter }}</legend>{{ item.as_p }}</fieldset>{% endfor %}
-<h2>Idiomas</h2>{{ idiomas.management_form }}{{ idiomas.non_form_errors }}{% for item in idiomas %}<fieldset><legend>Idioma {{ forloop.counter }}</legend>{{ item.as_p }}</fieldset>{% endfor %}
-<button type="submit">Enviar para revisão</button></form>{% endblock %}
+<form method="post" class="formulario" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="aviso aviso--erro" role="alert">
+    <strong>Revise o envio</strong>
+    <ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <section class="cartao">
+    <h2><span class="passo">1</span> Sobre a vaga</h2>
+    <p class="cartao__lead">O que os alunos verão ao abrir a vaga no aplicativo.</p>
+    {% for field in form.visible_fields %}{% if field.name in "titulo tipo modalidade descricao prazo" %}{% include "solicitacoes/_campo.html" %}{% endif %}{% endfor %}
+  </section>
+
+  <section class="cartao">
+    <h2><span class="passo">2</span> Quem pode se candidatar</h2>
+    <p class="cartao__lead">Deixe em branco para aceitar qualquer curso ou semestre.</p>
+    {% for field in form.visible_fields %}{% if field.name in "cursos periodo_minimo disponibilidade_horario" %}{% include "solicitacoes/_campo.html" %}{% endif %}{% endfor %}
+  </section>
+
+  <section class="cartao">
+    <h2><span class="passo">3</span> Competências e idiomas</h2>
+    <p class="cartao__lead">O app compara o currículo de cada aluno com estes requisitos e mostra a compatibilidade. Informe ao menos um.</p>
+    <h3>Competências</h3>
+    {% include "solicitacoes/_linhas.html" with formset=competencias rotulo="Competência" visiveis=2 %}
+    <h3>Idiomas</h3>
+    {% include "solicitacoes/_linhas.html" with formset=idiomas rotulo="Idioma" visiveis=1 %}
+  </section>
+
+  <section class="cartao cartao--destaque">
+    <h2><span class="passo">4</span> Perguntas ao candidato</h2>
+    <p class="cartao__lead">Além do currículo, o aluno responde ao que você perguntar aqui antes de se candidatar. É opcional, mas ajuda a conhecer quem se inscreve.</p>
+    <div class="como">
+      <div><strong>Já vem do currículo</strong><span>Nome, e-mail, curso, semestre, formação, experiências, competências e idiomas. O aluno só confere.</span></div>
+      <div><strong>Suas perguntas</strong><span>Chegam em branco para o aluno responder. Até 10 perguntas.</span></div>
+    </div>
+    {% include "solicitacoes/_linhas.html" with formset=perguntas rotulo="Pergunta" visiveis=2 %}
+  </section>
+
+  <div class="envio">
+    <p class="ajuda">Depois de enviar, o TEIA revisa e publica a vaga para os alunos.</p>
+    <button type="submit" class="botao">Enviar para revisão</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  document.querySelectorAll("[data-linhas]").forEach(function (bloco) {
+    var linhas = Array.prototype.slice.call(bloco.querySelectorAll("[data-linha]"));
+    var botao = bloco.querySelector("[data-adicionar]");
+    var minimo = parseInt(bloco.dataset.visiveis, 10) || 1;
+    function usada(l) { return l.classList.contains("linha--usada"); }
+    function atualizar() {
+      var mostradas = 0;
+      linhas.forEach(function (l) {
+        var mostrar = usada(l) || mostradas < minimo;
+        l.hidden = !mostrar;
+        if (mostrar) mostradas++;
+      });
+      botao.hidden = !linhas.some(function (l) { return l.hidden; });
+    }
+    botao.addEventListener("click", function () {
+      var prox = linhas.filter(function (l) { return l.hidden; })[0];
+      if (prox) { prox.classList.add("linha--usada"); atualizar(); var f = prox.querySelector("input,select,textarea"); if (f) f.focus(); }
+    });
+    linhas.forEach(function (l) {
+      l.querySelector("[data-limpar]").addEventListener("click", function () {
+        l.querySelectorAll("input[type=text],input[type=number],textarea").forEach(function (i) { i.value = ""; });
+        l.querySelectorAll("select").forEach(function (s) { s.selectedIndex = 0; Array.prototype.forEach.call(s.options, function (o, i) { if (o.defaultSelected) s.selectedIndex = i; }); });
+        l.querySelectorAll("input[type=checkbox]").forEach(function (c) { c.checked = c.defaultChecked; });
+        l.classList.remove("linha--usada");
+        atualizar();
+      });
+    });
+    atualizar();
+  });
+})();
+</script>
+{% endblock %}

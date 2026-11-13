@@ -1,1 +1,9 @@
-{% extends "solicitacoes/base.html" %}{% block content %}<h1>Link indisponível</h1><p>Este link expirou, foi revogado, já foi utilizado ou não está disponível. Solicite um novo link ao TEIA.</p>{% endblock %}
+{% extends "solicitacoes/base.html" %}
+{% block titulo %}Link indisponível{% endblock %}
+{% block content %}
+<section class="cartao estado">
+  <span class="estado__icone estado__icone--aviso" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v5m0 3.5v.01M10.3 4.2 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/></svg></span>
+  <h1>Link indisponível</h1>
+  <p>Este link expirou, foi revogado, já foi utilizado ou não está disponível. Solicite um novo link ao TEIA.</p>
+</section>
+{% endblock %}

@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from backend.models import Vaga, RequisitoCompetencia, RequisitoIdioma
+from backend.models import CampoModelo, Vaga, RequisitoCompetencia, RequisitoIdioma
 
 
 def novo_token():
@@ -117,3 +117,26 @@ class IdiomaSolicitado(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["solicitacao", "idioma"], name="solicitacao_idioma_unico")]
+
+
+class PerguntaSolicitada(models.Model):
+    """Pergunta da empresa que o aluno responde ao se candidatar, além do currículo.
+
+    Na publicação vira um `CampoModelo` de origem "vaga" no modelo de currículo da vaga.
+    """
+
+    solicitacao = models.ForeignKey(SolicitacaoVaga, on_delete=models.CASCADE, related_name="perguntas")
+    rotulo = models.CharField("pergunta", max_length=150)
+    ajuda = models.CharField("dica para o aluno", max_length=255, blank=True)
+    formato = models.CharField("tipo de resposta", max_length=15, choices=CampoModelo.Formato.choices,
+                               default=CampoModelo.Formato.TEXTO_LONGO)
+    obrigatorio = models.BooleanField("resposta obrigatória", default=True)
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordem", "id"]
+        verbose_name = "pergunta ao candidato"
+        verbose_name_plural = "perguntas ao candidato"
+
+    def __str__(self):
+        return self.rotulo

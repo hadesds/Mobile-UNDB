@@ -3,9 +3,9 @@ from django.db import transaction
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from .forms import SolicitacaoForm, CompetenciasFormSet, IdiomasFormSet
+from .forms import SolicitacaoForm, CompetenciasFormSet, IdiomasFormSet, PerguntasFormSet
 from .models import LinkEmpresa, SolicitacaoVaga
-from .services import links_disponiveis, validar
+from .services import links_disponiveis, validar, validar_perguntas
 
 
 @never_cache
@@ -24,11 +24,14 @@ def enviar(request, token):
             form = SolicitacaoForm(data, instance=solicitacao)
             comps = CompetenciasFormSet(data, instance=solicitacao, prefix="competencias")
             idiomas = IdiomasFormSet(data, instance=solicitacao, prefix="idiomas")
-            if request.method == "POST" and all([form.is_valid(), comps.is_valid(), idiomas.is_valid()]):
+            perguntas = PerguntasFormSet(data, instance=solicitacao, prefix="perguntas")
+            if request.method == "POST" and all(
+                    [form.is_valid(), comps.is_valid(), idiomas.is_valid(), perguntas.is_valid()]):
                 def itens(formset, campos):
                     return [{k: getattr(f.cleaned_data[k], "pk", f.cleaned_data[k]) for k in campos}
                             for f in formset if f.cleaned_data and not f.cleaned_data.get("DELETE")]
                 try:
+                    validar_perguntas([f.cleaned_data for f in perguntas if f.cleaned_data])
                     validar(solicitacao, itens(comps, ["competencia", "obrigatorio"]),
                             itens(idiomas, ["idioma", "nivel_minimo", "obrigatorio"]),
                             form.cleaned_data["cursos"].values_list("pk", flat=True))
@@ -38,9 +41,13 @@ def enviar(request, token):
                     form.save()
                     comps.save()
                     idiomas.save()
+                    for ordem, pergunta in enumerate(perguntas.save(commit=False)):
+                        pergunta.ordem = ordem
+                        pergunta.save()
                     return redirect("solicitacoes:sucesso")
             response = render(request, "solicitacoes/formulario.html", {
-                "empresa": link.empresa, "form": form, "competencias": comps, "idiomas": idiomas})
+                "empresa": link.empresa, "form": form, "competencias": comps, "idiomas": idiomas,
+                "perguntas": perguntas})
     response["Referrer-Policy"] = "no-referrer"
     response["X-Robots-Tag"] = "noindex, nofollow"
     return response
