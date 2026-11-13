@@ -124,7 +124,9 @@ class CamadaDeImportacaoTests(CertificadoBase):
         self.assertEqual(cadastrar(aluno, novo).origem, "upload")
 
 
-class CandidaturaComCertificadosTests(CertificadoBase):
+class CenarioDeCandidatura(CertificadoBase):
+    """Aluno com 2 certificados e uma vaga aberta que pede Python."""
+
     def setUp(self):
         from datetime import timedelta
 
@@ -147,6 +149,8 @@ class CandidaturaComCertificadosTests(CertificadoBase):
     def candidatar(self, **extra):
         return self.client.post(reverse("candidatura-list"), {"vaga": self.vaga.id, **extra}, format="json")
 
+
+class CandidaturaComCertificadosTests(CenarioDeCandidatura):
     def test_candidatura_guarda_os_certificados_escolhidos(self):
         r = self.candidatar(certificados=[self.cert.id, self.cert2.id, self.cert.id])
         self.assertEqual(r.status_code, 201, r.content)
@@ -204,3 +208,54 @@ class CandidaturaComCertificadosTests(CertificadoBase):
         cid = self.candidatar(certificados=[self.cert.id]).data["id"]
         arq = reverse("gestor-candidatura-certificado-arquivo", args=[cid, self.cert.id])
         self.assertEqual(self.client.get(arq).status_code, 403)
+
+
+class CompatibilidadeComCertificadosTests(CenarioDeCandidatura):
+    """Reaproveita o cenário: vaga que pede Python (sinônimo "py"); aluno sem Python no perfil."""
+
+    def item_python(self, resposta):
+        return next(i for i in resposta.data["analise"]["itens"] if i["requisito"] == "Python")
+
+    def novo_cert(self, titulo, instituicao=""):
+        return cadastrar(
+            self.aluno,
+            CertificadoNovo(titulo=titulo, instituicao=instituicao, conteudo=PDF, nome_arquivo="x.pdf"),
+        )
+
+    def test_sem_certificado_o_requisito_fica_nao_identificado(self):
+        r = self.candidatar()
+        self.assertEqual(self.item_python(r)["status"], "nao_identificado")
+        self.assertEqual(r.data["analise"]["score"], 0)
+
+    def test_certificado_escolhido_comprova_pelo_nome(self):
+        r = self.candidatar(certificados=[self.cert.id])  # "Curso de Python"
+        item = self.item_python(r)
+        self.assertEqual(item["status"], "encontrado")
+        self.assertIn("Certificado: Curso de Python", item["detalhe"])
+        self.assertEqual(r.data["analise"]["score"], 100)
+
+    def test_sinonimo_comprova(self):
+        cert = self.novo_cert("Oficina de PY para dados", "Alura")  # sinônimo "py", sem acento/caixa
+        r = self.candidatar(certificados=[cert.id])
+        self.assertEqual(self.item_python(r)["status"], "encontrado")
+        self.assertIn("Certificado: Oficina de PY para dados · Alura", self.item_python(r)["detalhe"])
+
+    def test_certificado_nao_escolhido_nao_conta(self):
+        r = self.candidatar(certificados=[self.cert2.id])  # "Git e GitHub"
+        self.assertEqual(self.item_python(r)["status"], "nao_identificado")
+
+    def test_so_palavra_inteira(self):
+        # "pythonista" e "pyramid" não são "python" nem "py"
+        errado = self.novo_cert("Pythonista e Pyramid")
+        r = self.candidatar(certificados=[errado.id])
+        self.assertEqual(self.item_python(r)["status"], "nao_identificado")
+
+    def test_reanalise_mantem_os_certificados_e_registra_versao(self):
+        cid = self.candidatar(certificados=[self.cert.id]).data["id"]
+        r = self.client.post(reverse("candidatura-reanalisar", args=[cid]))
+        self.assertEqual(self.item_python(r)["status"], "encontrado")
+        from backend.models import Analise
+
+        ultima = Analise.objects.filter(candidatura_id=cid).order_by("-criada_em").first()
+        self.assertEqual(ultima.versao_motor, "regras-0.3")
+        self.assertEqual(ultima.perfil_snapshot["certificados"], ["Curso de Python"])

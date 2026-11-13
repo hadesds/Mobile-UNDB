@@ -5,6 +5,8 @@ Cada requisito cadastrado vale o mesmo peso; o score é a fração com evidênci
 O resultado orienta o aluno e o gestor: nunca aprova nem elimina ninguém.
 """
 
+import re
+
 from django.db import transaction
 
 from backend.models import (
@@ -17,7 +19,7 @@ from backend.models import (
     normalizar_termo,
 )
 
-VERSAO_MOTOR = "regras-0.2"
+VERSAO_MOTOR = "regras-0.3"  # 0.3: certificados escolhidos contam como evidência
 
 ENCONTRADO = "encontrado"
 DIFERENTE = "diferente"
@@ -35,15 +37,37 @@ def _item(requisito, categoria, tipo, status, detalhe, obrigatorio=True):
     }
 
 
-def _evidencia_competencia(perfil, nome: str) -> str | None:
-    """Procura a competência citada em experiências ou cursos complementares.
+def _termos_da_competencia(competencia) -> list[str]:
+    """Nome e sinônimos já normalizados (o vocabulário compartilhado do projeto)."""
+    termos = {normalizar_termo(competencia.nome)}
+    termos.update(s.termo_normalizado for s in competencia.sinonimos.all())
+    return sorted(t for t in termos if t)
 
-    TODO(T1 · certificados): incluir aqui os certificados que o aluno marcou
-    para a candidatura (CandidaturaCertificado). Hoje `avaliar` recebe só
-    (aluno, vaga); passe a candidatura (ou a lista de certificados) por
-    parâmetro e procure `nome` no título do certificado, devolvendo algo como
-    "Certificado: <título> · <instituição>". Ao mudar a regra, suba VERSAO_MOTOR.
+
+def _cita_termo(texto: str, termo: str) -> bool:
+    """Palavra inteira: 'java' NÃO casa em 'javascript'; 'c#' e 'c++' casam como são."""
+    padrao = r"(?<![a-z0-9+#])" + re.escape(termo) + r"(?![a-z0-9+#])"
+    return re.search(padrao, texto) is not None
+
+
+def _evidencia_certificado(competencia, certificados) -> str | None:
+    """Regra da T1: o requisito é comprovado se o TÍTULO de algum certificado escolhido
+    cita o nome da competência ou um sinônimo dela, como palavra inteira.
+
+    Só conta certificado escolhido na candidatura; idioma e o conteúdo do arquivo
+    ficam de fora. Ao mudar esta regra, suba VERSAO_MOTOR.
     """
+    termos = _termos_da_competencia(competencia)
+    for cert in certificados:
+        titulo = normalizar_termo(cert.titulo)
+        if any(_cita_termo(titulo, t) for t in termos):
+            origem = f" · {cert.instituicao}" if cert.instituicao else ""
+            return f"Certificado: {cert.titulo}{origem}"
+    return None
+
+
+def _evidencia_competencia(perfil, nome: str) -> str | None:
+    """Procura a competência citada em experiências ou cursos complementares."""
     chave = normalizar_termo(nome)
     for exp in perfil.experiencias.all():
         texto = normalizar_termo(f"{exp.funcao} {exp.descricao}")
@@ -55,7 +79,8 @@ def _evidencia_competencia(perfil, nome: str) -> str | None:
     return None
 
 
-def avaliar(aluno, vaga: Vaga) -> list[dict]:
+def avaliar(aluno, vaga: Vaga, certificados=()) -> list[dict]:
+    """`certificados`: os que o aluno escolheu para esta candidatura (podem ser vazios)."""
     perfil, _ = PerfilCompetencias.objects.get_or_create(aluno=aluno)
     itens: list[dict] = []
 
@@ -92,7 +117,7 @@ def avaliar(aluno, vaga: Vaga) -> list[dict]:
     for req in vaga.requisitos_competencia.select_related("competencia"):
         nome = req.competencia.nome
         registrada = do_perfil.get(req.competencia_id)
-        evidencia = _evidencia_competencia(perfil, nome)
+        evidencia = _evidencia_certificado(req.competencia, certificados) or _evidencia_competencia(perfil, nome)
         if registrada or evidencia:
             partes = []
             if registrada:
@@ -135,7 +160,8 @@ def avaliar(aluno, vaga: Vaga) -> list[dict]:
     return itens
 
 
-def _snapshot(aluno) -> dict:
+def _snapshot(candidatura) -> dict:
+    aluno = candidatura.aluno
     perfil = aluno.perfil_competencias
     return {
         "curso": aluno.curso.nome,
@@ -144,6 +170,7 @@ def _snapshot(aluno) -> dict:
         "idiomas": {i.idioma: i.nivel for i in perfil.idiomas.all()},
         "experiencias": perfil.experiencias.count(),
         "cursos": perfil.cursos.count(),
+        "certificados": [e.certificado.titulo for e in candidatura.certificados_escolhidos.select_related("certificado")],
     }
 
 
@@ -157,7 +184,10 @@ def _feedback(itens: list[dict]) -> str:
 @transaction.atomic
 def analisar(candidatura: Candidatura) -> Analise:
     """Gera uma nova análise (as anteriores ficam como histórico)."""
-    itens = avaliar(candidatura.aluno, candidatura.vaga)
+    certificados = [
+        e.certificado for e in candidatura.certificados_escolhidos.select_related("certificado")
+    ]
+    itens = avaliar(candidatura.aluno, candidatura.vaga, certificados)
     total = len(itens)
     atendidos = [i for i in itens if i["status"] == ENCONTRADO]
     score = round(100 * len(atendidos) / total) if total else 0
@@ -167,6 +197,6 @@ def analisar(candidatura: Candidatura) -> Analise:
         requisitos_atendidos=atendidos,
         requisitos_faltantes=[i for i in itens if i["status"] != ENCONTRADO],
         feedback_texto=_feedback(itens),
-        perfil_snapshot=_snapshot(candidatura.aluno),
+        perfil_snapshot=_snapshot(candidatura),
         versao_motor=VERSAO_MOTOR,
     )
