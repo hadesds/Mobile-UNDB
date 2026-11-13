@@ -5,12 +5,14 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from backend.importacao_certificados import CertificadoInvalido, tipo_de_conteudo
 from backend.models import (
     VERSAO_TERMO_LGPD,
     Aluno,
     ArquivoCurriculo,
     Analise,
     Candidatura,
+    Certificado,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -288,6 +290,41 @@ class ArquivoCurriculoSerializer(serializers.ModelSerializer):
         model = ArquivoCurriculo
         fields = ["nome_original", "tipo", "tamanho", "paginas", "enviado_em"]
         read_only_fields = fields
+
+
+class CertificadoSerializer(serializers.ModelSerializer):
+    """Certificado do aluno. O arquivo só sai por `me/certificados/{id}/arquivo/`."""
+
+    class Meta:
+        model = Certificado
+        fields = [
+            "id", "titulo", "instituicao", "carga_horaria", "data",
+            "origem", "nome_original", "criado_em",
+        ]
+        read_only_fields = fields
+
+
+class CertificadoEntradaSerializer(serializers.Serializer):
+    titulo = serializers.CharField(max_length=150)
+    instituicao = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    carga_horaria = serializers.IntegerField(min_value=1, max_value=10000, required=False, allow_null=True)
+    data = serializers.DateField(required=False, allow_null=True)
+    arquivo = serializers.FileField()
+
+    def validate_titulo(self, valor):
+        valor = valor.strip()
+        if not valor:
+            raise serializers.ValidationError("Informe o título do certificado.")
+        return valor
+
+    def validate_arquivo(self, arquivo):
+        try:
+            tipo_de_conteudo(arquivo.name, arquivo.read())
+        except CertificadoInvalido as exc:
+            raise serializers.ValidationError(str(exc))
+        finally:
+            arquivo.seek(0)
+        return arquivo
 
 
 class PerfilSerializer(serializers.ModelSerializer):

@@ -19,6 +19,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from backend.compatibilidade import analisar
 from backend.exportacao_curriculo import SECOES as SECOES_PDF, gerar_pdf
+from backend.importacao_certificados import CertificadoNovo, cadastrar, tipo_pelo_nome
 from backend.formulario_candidatura import (
     RespostasInvalidas,
     modelo_da_vaga,
@@ -32,6 +33,7 @@ from backend.models import (
     ArquivoCurriculo,
     Analise,
     Candidatura,
+    Certificado,
     Competencia,
     CompetenciaDoPerfil,
     Curso,
@@ -64,6 +66,8 @@ from .serializers import (
     ArquivoCurriculoSerializer,
     CadastroAlunoSerializer,
     CandidatoDetalheSerializer,
+    CertificadoEntradaSerializer,
+    CertificadoSerializer,
     CandidatoSerializer,
     CompetenciaAdminSerializer,
     CursoAdminSerializer,
@@ -341,6 +345,62 @@ class ArquivoCurriculoOriginalView(APIView):
             as_attachment=request.query_params.get("baixar") == "1",
             filename=arquivo.nome_original,
             content_type=_TIPOS_CONTEUDO[arquivo.tipo],
+        )
+
+
+class CertificadoViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Certificados do próprio aluno: enviar (POST multipart), listar, apagar e baixar o arquivo.
+
+    A origem do certificado vem da camada `importacao_certificados`; por enquanto
+    todo certificado criado aqui é `upload`.
+    """
+
+    permission_classes = [IsAlunoComConsentimento]
+    parser_classes = [MultiPartParser, FormParser]
+    serializer_class = CertificadoSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return Certificado.objects.filter(aluno=self.request.user.aluno)
+
+    def create(self, request, *args, **kwargs):
+        ser = CertificadoEntradaSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        dados = ser.validated_data
+        arquivo = dados["arquivo"]
+        certificado = cadastrar(
+            request.user.aluno,
+            CertificadoNovo(
+                titulo=dados["titulo"],
+                instituicao=dados.get("instituicao", ""),
+                carga_horaria=dados.get("carga_horaria"),
+                data=dados.get("data"),
+                conteudo=arquivo.read(),
+                nome_arquivo=arquivo.name,
+            ),
+            Certificado.Origem.UPLOAD,
+        )
+        return Response(CertificadoSerializer(certificado).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def arquivo(self, request, pk=None):
+        """O arquivo como foi enviado. `?baixar=1` força o download."""
+        certificado = self.get_object()
+        try:
+            conteudo = certificado.arquivo.open("rb")
+        except (FileNotFoundError, ValueError):
+            return Response({"detail": "O arquivo não está mais disponível."}, status=status.HTTP_404_NOT_FOUND)
+        return FileResponse(
+            conteudo,
+            as_attachment=request.query_params.get("baixar") == "1",
+            filename=certificado.nome_original or "certificado",
+            content_type=tipo_pelo_nome(certificado.arquivo.name),
         )
 
 
