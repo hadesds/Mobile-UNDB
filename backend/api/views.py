@@ -18,6 +18,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from backend.compatibilidade import analisar
+from backend.decisao import decidir as decidir_candidatura
 from backend.exportacao_curriculo import SECOES as SECOES_PDF, gerar_pdf
 from backend.importacao_certificados import CertificadoNovo, cadastrar, tipo_pelo_nome
 from backend.formulario_candidatura import (
@@ -911,23 +912,8 @@ class CandidaturaGestorViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSe
         novo = ser.validated_data["status"]
         observacao = ser.validated_data.get("observacao")
 
-        with transaction.atomic():
-            if novo in (Candidatura.Status.ENCAMINHADA, Candidatura.Status.EM_PROCESSO):
-                enc, criado = Encaminhamento.objects.get_or_create(
-                    candidatura=candidatura,
-                    defaults={"gestor": request.user.gestor, "observacao": observacao or ""},
-                )
-                if not criado and observacao is not None:
-                    enc.observacao = observacao
-                    enc.save(update_fields=["observacao"])
-            elif novo == Candidatura.Status.ANALISADA:
-                # Desfazer: volta para a fila sem registro de encaminhamento.
-                Encaminhamento.objects.filter(candidatura=candidatura).delete()
-            elif observacao is not None and hasattr(candidatura, "encaminhamento"):
-                candidatura.encaminhamento.observacao = observacao
-                candidatura.encaminhamento.save(update_fields=["observacao"])
-            candidatura.status = novo
-            candidatura.save(update_fields=["status", "atualizada_em"])
+        # Mesma regra do painel admin (backend/decisao.py).
+        decidir_candidatura(candidatura, novo, request.user.gestor, observacao)
 
         return Response(CandidatoDetalheSerializer(self.get_queryset().get(pk=candidatura.pk)).data)
 
